@@ -10,6 +10,7 @@ import {IPropertyOption, IPropertyTemplate, Board, BoardGroup} from '../../block
 import {BoardView} from '../../blocks/boardView'
 import {Card} from '../../blocks/card'
 import mutator from '../../mutator'
+import {deleteCardsInColumn} from '../../cardActions'
 import IconButton from '../../widgets/buttons/iconButton'
 import AddIcon from '../../widgets/icons/add'
 import DeleteIcon from '../../widgets/icons/delete'
@@ -169,6 +170,13 @@ export default function KanbanColumnHeader(props: Props): JSX.Element {
                                     icon={<HideIcon/>}
                                     name={intl.formatMessage({id: 'BoardComponent.hide', defaultMessage: 'Hide'})}
                                     onClick={() => mutator.hideViewColumn(board.id, activeView, group.option.id || '')}
+                                />
+                                <Menu.Text
+                                    id='deleteAllCards'
+                                    icon={<DeleteIcon/>}
+                                    name={intl.formatMessage({id: 'BoardComponent.delete-all-cards', defaultMessage: 'Delete all cards ({count})'}, {count: group.cards.length})}
+                                    disabled={group.cards.length === 0}
+                                    onClick={() => deleteCardsInColumn(group.cards)}
                                 />
                                 {canEditOption &&
                                     <>

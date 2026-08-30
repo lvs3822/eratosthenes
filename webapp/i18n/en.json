@@ -14,6 +14,7 @@
   "AttachmentElement.upload-percentage": "Uploading...({uploadPercent}%)",
   "BoardComponent.add-a-group": "+ Add a group",
   "BoardComponent.delete": "Delete",
+  "BoardComponent.delete-all-cards": "Delete all cards ({count})",
   "BoardComponent.hidden-columns": "Hidden columns",
   "BoardComponent.hide": "Hide",
   "BoardComponent.new": "+ New",
