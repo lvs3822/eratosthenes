@@ -19,10 +19,15 @@ const (
 	defaultPerPage = "100"
 )
 
+// maxMoveCardsCount caps how many cards a single move request can carry. It is the page
+// size used to list cards, so a client can always move a full page in one call.
+var maxMoveCardsCount, _ = strconv.Atoi(defaultPerPage)
+
 func (a *API) registerCardsRoutes(r *mux.Router) {
 	// Cards APIs
 	r.HandleFunc("/boards/{boardID}/cards", a.sessionRequired(a.handleCreateCard)).Methods("POST")
 	r.HandleFunc("/boards/{boardID}/cards", a.sessionRequired(a.handleGetCards)).Methods("GET")
+	r.HandleFunc("/boards/{boardID}/cards/move", a.sessionRequired(a.handleMoveCards)).Methods("POST")
 	r.HandleFunc("/cards/{cardID}", a.sessionRequired(a.handlePatchCard)).Methods("PATCH")
 	r.HandleFunc("/cards/{cardID}", a.sessionRequired(a.handleGetCard)).Methods("GET")
 }
@@ -377,6 +382,141 @@ func (a *API) handleGetCard(w http.ResponseWriter, r *http.Request) {
 	)
 
 	data, err := json.Marshal(card)
+	if err != nil {
+		a.errorResponse(w, r, err)
+		return
+	}
+
+	// response
+	jsonBytesResponse(w, http.StatusOK, data)
+
+	auditRec.Success()
+}
+
+func (a *API) handleMoveCards(w http.ResponseWriter, r *http.Request) {
+	// swagger:operation POST /boards/{boardID}/cards/move moveCards
+	//
+	// Moves cards from the specified board to another board.
+	//
+	// ---
+	// produces:
+	// - application/json
+	// parameters:
+	// - name: boardID
+	//   in: path
+	//   description: Source board ID
+	//   required: true
+	//   type: string
+	// - name: Body
+	//   in: body
+	//   description: the cards to move and the board to move them to
+	//   required: true
+	//   schema:
+	//     "$ref": "#/definitions/MoveCardsRequest"
+	// security:
+	// - BearerAuth: []
+	// responses:
+	//   '200':
+	//     description: success
+	//     schema:
+	//       type: array
+	//       items:
+	//         "$ref": "#/definitions/Card"
+	//   default:
+	//     description: internal error
+	//     schema:
+	//       "$ref": "#/definitions/ErrorResponse"
+
+	userID := getUserID(r)
+	boardID := mux.Vars(r)["boardID"]
+
+	requestBody, err := io.ReadAll(r.Body)
+	if err != nil {
+		a.errorResponse(w, r, err)
+		return
+	}
+
+	var moveRequest *model.MoveCardsRequest
+	if err = json.Unmarshal(requestBody, &moveRequest); err != nil {
+		a.errorResponse(w, r, model.NewErrBadRequest(err.Error()))
+		return
+	}
+
+	if err = moveRequest.IsValid(); err != nil {
+		a.errorResponse(w, r, model.NewErrBadRequest(err.Error()))
+		return
+	}
+
+	if len(moveRequest.CardIDs) > maxMoveCardsCount {
+		message := fmt.Sprintf("cannot move more than %d cards at once", maxMoveCardsCount)
+		a.errorResponse(w, r, model.NewErrBadRequest(message))
+		return
+	}
+
+	if moveRequest.ToBoardID == boardID {
+		a.errorResponse(w, r, model.NewErrBadRequest("the target board is the same as the source board"))
+		return
+	}
+
+	// the permission on the source board is checked first, so that a caller with no rights
+	// on it cannot learn which board ids exist from the lookup below
+	if !a.permissions.HasPermissionToBoard(userID, boardID, model.PermissionManageBoardCards) {
+		a.errorResponse(w, r, model.NewErrPermission("access denied to move cards from this board"))
+		return
+	}
+
+	targetBoard, err := a.app.GetBoard(moveRequest.ToBoardID)
+	if err != nil {
+		a.errorResponse(w, r, err)
+		return
+	}
+	if targetBoard == nil {
+		a.errorResponse(w, r, model.NewErrNotFound("board ID="+moveRequest.ToBoardID))
+		return
+	}
+
+	if !a.permissions.HasPermissionToBoard(userID, targetBoard.ID, model.PermissionManageBoardCards) {
+		a.errorResponse(w, r, model.NewErrPermission("access denied to move cards to the target board"))
+		return
+	}
+
+	auditRec := a.makeAuditRecord(r, "moveCards", audit.Fail)
+	defer a.audit.LogRecord(audit.LevelModify, auditRec)
+	auditRec.AddMeta("boardID", boardID)
+	auditRec.AddMeta("toBoardID", targetBoard.ID)
+	auditRec.AddMeta("cardCount", len(moveRequest.CardIDs))
+
+	// move cards
+	movedBlocks, err := a.app.MoveCardsToBoard(moveRequest.CardIDs, boardID, targetBoard.ID, userID)
+	if err != nil {
+		a.errorResponse(w, r, err)
+		return
+	}
+
+	// only the cards themselves are returned, not the content blocks and comments that
+	// moved with them
+	movedCards := make([]*model.Card, 0, len(moveRequest.CardIDs))
+	for _, block := range movedBlocks {
+		if block.Type != model.TypeCard {
+			continue
+		}
+
+		card, err2 := model.Block2Card(block)
+		if err2 != nil {
+			a.errorResponse(w, r, err2)
+			return
+		}
+		movedCards = append(movedCards, card)
+	}
+
+	a.logger.Debug("MoveCards",
+		mlog.String("boardID", boardID),
+		mlog.String("toBoardID", targetBoard.ID),
+		mlog.String("userID", userID),
+		mlog.Int("count", len(movedCards)),
+	)
+
+	data, err := json.Marshal(movedCards)
 	if err != nil {
 		a.errorResponse(w, r, err)
 		return

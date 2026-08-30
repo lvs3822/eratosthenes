@@ -4,7 +4,6 @@
 package app
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/mattermost/focalboard/server/model"
@@ -12,16 +11,19 @@ import (
 	"github.com/mattermost/mattermost/server/public/shared/mlog"
 )
 
+// These are bad requests rather than plain sentinels so that the API layer maps them to a
+// 400 through model.IsErrBadRequest. They stay comparable with errors.Is.
 var (
-	ErrMoveToSameBoard      = errors.New("the target board is the same as the source board")
-	ErrMoveAcrossTeams      = errors.New("cards cannot be moved to a board of another team")
-	ErrMoveTemplateBoard    = errors.New("cards cannot be moved from or to a template board")
-	ErrMoveTemplateCard     = errors.New("template cards cannot be moved")
-	ErrCardNotInSourceBoard = errors.New("the card does not belong to the source board")
+	ErrMoveToSameBoard      = model.NewErrBadRequest("the target board is the same as the source board")
+	ErrMoveAcrossTeams      = model.NewErrBadRequest("cards cannot be moved to a board of another team")
+	ErrMoveTemplateBoard    = model.NewErrBadRequest("cards cannot be moved from or to a template board")
+	ErrMoveTemplateCard     = model.NewErrBadRequest("template cards cannot be moved")
+	ErrCardNotInSourceBoard = model.NewErrBadRequest("the card does not belong to the source board")
+	ErrMoveNotACard         = model.NewErrBadRequest("only cards can be moved between boards")
 )
 
 // MoveCardsToBoard moves the given cards, their content blocks and their comments from
-// fromBoardID to toBoardID.
+// fromBoardID to toBoardID, and returns every block that moved.
 //
 // Card properties are discarded: after the move fields.properties is an empty map, so the
 // cards take the property schema of the target board with every value unset. No attempt is
@@ -31,40 +33,40 @@ var (
 // before the transaction because the file backend is not transactional, and the resulting
 // file IDs are applied to the blocks inside it. The source files are left where they are on
 // purpose; cleaning them up is a separate task.
-func (a *App) MoveCardsToBoard(cardIDs []string, fromBoardID string, toBoardID string, userID string) error {
+func (a *App) MoveCardsToBoard(cardIDs []string, fromBoardID string, toBoardID string, userID string) ([]*model.Block, error) {
 	if len(cardIDs) == 0 {
-		return nil
+		return []*model.Block{}, nil
 	}
 
 	if fromBoardID == "" || toBoardID == "" {
-		return model.NewErrBadRequest("a source and a target board are required to move cards")
+		return nil, model.NewErrBadRequest("a source and a target board are required to move cards")
 	}
 
 	if fromBoardID == toBoardID {
-		return ErrMoveToSameBoard
+		return nil, ErrMoveToSameBoard
 	}
 
 	sourceBoard, err := a.GetBoard(fromBoardID)
 	if err != nil {
-		return fmt.Errorf("cannot fetch source board %s for MoveCardsToBoard: %w", fromBoardID, err)
+		return nil, fmt.Errorf("cannot fetch source board %s for MoveCardsToBoard: %w", fromBoardID, err)
 	}
 
 	targetBoard, err := a.GetBoard(toBoardID)
 	if err != nil {
-		return fmt.Errorf("cannot fetch target board %s for MoveCardsToBoard: %w", toBoardID, err)
+		return nil, fmt.Errorf("cannot fetch target board %s for MoveCardsToBoard: %w", toBoardID, err)
 	}
 
 	if sourceBoard.IsTemplate || targetBoard.IsTemplate {
-		return ErrMoveTemplateBoard
+		return nil, ErrMoveTemplateBoard
 	}
 
 	if sourceBoard.TeamID != targetBoard.TeamID {
-		return ErrMoveAcrossTeams
+		return nil, ErrMoveAcrossTeams
 	}
 
 	movableCardIDs, blocksToMove, err := a.validateCardsForMove(cardIDs, fromBoardID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	newFileNames := map[string]string{}
@@ -78,13 +80,13 @@ func (a *App) MoveCardsToBoard(cardIDs []string, fromBoardID string, toBoardID s
 
 		newFileNames, err = a.CopyCardFiles(fromBoardID, blocksToMove, false)
 		if err != nil {
-			return fmt.Errorf("cannot copy the files of the moved cards: %w", err)
+			return nil, fmt.Errorf("cannot copy the files of the moved cards: %w", err)
 		}
 	}
 
 	movedBlocks, err := a.store.MoveCardsToBoard(movableCardIDs, fromBoardID, toBoardID, newFileNames, userID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	a.metrics.IncrementBlocksPatched(len(movedBlocks))
@@ -102,7 +104,7 @@ func (a *App) MoveCardsToBoard(cardIDs []string, fromBoardID string, toBoardID s
 	// TODO: webhooks (a.webhook.NotifyUpdate) and subscription notifications
 	// (a.notifyBlockChanged) are deliberately not fired for a move yet.
 
-	return nil
+	return movedBlocks, nil
 }
 
 // validateCardsForMove checks that every card is allowed to leave fromBoardID and returns
@@ -131,7 +133,7 @@ func (a *App) validateCardsForMove(cardIDs []string, fromBoardID string) ([]stri
 		}
 
 		if card.Type != model.TypeCard {
-			return nil, nil, fmt.Errorf("block %s cannot be moved: %w", cardID, model.ErrNotCardBlock)
+			return nil, nil, fmt.Errorf("block %s: %w", cardID, ErrMoveNotACard)
 		}
 
 		if card.BoardID != fromBoardID {
