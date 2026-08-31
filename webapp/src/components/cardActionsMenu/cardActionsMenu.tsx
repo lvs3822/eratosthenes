@@ -74,7 +74,7 @@ export const CardActionsMenu = (props: Props): JSX.Element => {
                     id='moveToBoard'
                     icon={<CompassIcon icon='arrow-right'/>}
                     name={intl.formatMessage({id: 'CardActionsMenu.moveToBoard', defaultMessage: 'Move to board'})}
-                    position='left'
+                    position='bottom'
                 >
                     {moveToBoards.map((board) => (
                         <Menu.Text
