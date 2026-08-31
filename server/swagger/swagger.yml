@@ -77,6 +77,9 @@ definitions:
     LoginResponse:
         description: LoginResponse is a login response
         x-go-package: github.com/mattermost/focalboard/server/model
+    MoveCardsRequest:
+        title: MoveCardsRequest is the payload to move a set of cards to another board.
+        x-go-package: github.com/mattermost/focalboard/server/model
     NotificationHint:
         description: |-
             NotificationHint provides a hint that a block has been modified and has subscribers that
@@ -633,6 +636,37 @@ paths:
             security:
                 - BearerAuth: []
             summary: Creates a new card for the specified board.
+    /boards/{boardID}/cards/move:
+        post:
+            operationId: moveCards
+            parameters:
+                - description: Source board ID
+                  in: path
+                  name: boardID
+                  required: true
+                  type: string
+                - description: the cards to move and the board to move them to
+                  in: body
+                  name: Body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/MoveCardsRequest'
+            produces:
+                - application/json
+            responses:
+                "200":
+                    description: success
+                    schema:
+                        items:
+                            $ref: '#/definitions/Card'
+                        type: array
+                default:
+                    description: internal error
+                    schema:
+                        $ref: '#/definitions/ErrorResponse'
+            security:
+                - BearerAuth: []
+            summary: Moves cards from the specified board to another board.
     /boards/{boardID}/duplicate:
         post:
             description: Returns the new created board and all the blocks

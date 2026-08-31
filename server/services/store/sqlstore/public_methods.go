@@ -665,6 +665,30 @@ func (s *SQLStore) InsertBoardWithAdmin(board *model.Board, userID string) (*mod
 
 }
 
+func (s *SQLStore) MoveCardsToBoard(cardIDs []string, fromBoardID string, toBoardID string, newFileNames map[string]string, userID string) ([]*model.Block, error) {
+	if s.dbType == model.SqliteDBType {
+		return s.moveCardsToBoard(s.db, cardIDs, fromBoardID, toBoardID, newFileNames, userID)
+	}
+	tx, txErr := s.db.BeginTx(context.Background(), nil)
+	if txErr != nil {
+		return nil, txErr
+	}
+	result, err := s.moveCardsToBoard(tx, cardIDs, fromBoardID, toBoardID, newFileNames, userID)
+	if err != nil {
+		if rollbackErr := tx.Rollback(); rollbackErr != nil {
+			s.logger.Error("transaction rollback error", mlog.Err(rollbackErr), mlog.String("methodName", "MoveCardsToBoard"))
+		}
+		return nil, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	return result, nil
+
+}
+
 func (s *SQLStore) PatchBlock(blockID string, blockPatch *model.BlockPatch, userID string) error {
 	if s.dbType == model.SqliteDBType {
 		return s.patchBlock(s.db, blockID, blockPatch, userID)

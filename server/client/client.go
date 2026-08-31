@@ -396,6 +396,22 @@ func (c *Client) GetCard(cardID string) (*model.Card, *Response) {
 	return card, BuildResponse(r)
 }
 
+func (c *Client) MoveCards(boardID string, request *model.MoveCardsRequest) ([]*model.Card, *Response) {
+	r, err := c.DoAPIPost(c.GetBoardRoute(boardID)+"/cards/move", toJSON(request))
+	if err != nil {
+		return nil, BuildErrorResponse(r, err)
+	}
+
+	defer closeBody(r)
+
+	var cards []*model.Card
+	if err := json.NewDecoder(r.Body).Decode(&cards); err != nil {
+		return nil, BuildErrorResponse(r, err)
+	}
+
+	return cards, BuildResponse(r)
+}
+
 //
 // Boards and blocks.
 //

@@ -1301,6 +1301,21 @@ func (mr *MockStoreMockRecorder) InsertBoardWithAdmin(arg0, arg1 interface{}) *g
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertBoardWithAdmin", reflect.TypeOf((*MockStore)(nil).InsertBoardWithAdmin), arg0, arg1)
 }
 
+// MoveCardsToBoard mocks base method.
+func (m *MockStore) MoveCardsToBoard(arg0 []string, arg1, arg2 string, arg3 map[string]string, arg4 string) ([]*model.Block, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "MoveCardsToBoard", arg0, arg1, arg2, arg3, arg4)
+	ret0, _ := ret[0].([]*model.Block)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// MoveCardsToBoard indicates an expected call of MoveCardsToBoard.
+func (mr *MockStoreMockRecorder) MoveCardsToBoard(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MoveCardsToBoard", reflect.TypeOf((*MockStore)(nil).MoveCardsToBoard), arg0, arg1, arg2, arg3, arg4)
+}
+
 // PatchBlock mocks base method.
 func (m *MockStore) PatchBlock(arg0 string, arg1 *model.BlockPatch, arg2 string) error {
 	m.ctrl.T.Helper()
