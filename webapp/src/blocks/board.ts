@@ -91,12 +91,22 @@ interface IPropertyOption {
     color: string
 }
 
+// A condition that limits when a card property is shown. The property is
+// visible only when the card's value for propertyId is one of optionIds.
+interface IPropertyVisibility {
+    propertyId: string
+    optionIds: string[]
+}
+
 // A template for card properties attached to a board
 interface IPropertyTemplate {
     id: string
     name: string
     type: PropertyTypeEnum
     options: IPropertyOption[]
+
+    // When absent, the property is always shown. This is the default behaviour.
+    visibleWhen?: IPropertyVisibility
 }
 
 function createBoard(board?: Board): Board {
@@ -114,13 +124,26 @@ function createBoard(board?: Board): Board {
     }
 
     if (board?.cardProperties) {
-        // Deep clone of card properties and their options
+        // Deep clone of card properties and their options.
+        // NOTE: this is an allowlist. It copies the fields named below and
+        // silently drops every other key the server sent. Any new field added to
+        // IPropertyTemplate MUST be copied here too, otherwise it is lost on the
+        // first board update the client receives and then erased on the next save.
         cardProperties = board?.cardProperties.map((o: IPropertyTemplate) => {
             return {
                 id: o.id,
                 name: o.name,
                 type: o.type,
                 options: o.options ? o.options.map((option) => ({...option})) : [],
+
+                // Emit the key only when a condition exists, so that a property
+                // without one stays byte-identical to what it is today.
+                ...(o.visibleWhen ? {
+                    visibleWhen: {
+                        propertyId: o.visibleWhen.propertyId,
+                        optionIds: o.visibleWhen.optionIds ? [...o.visibleWhen.optionIds] : [],
+                    },
+                } : {}),
             }
         })
     }
@@ -165,13 +188,41 @@ function getPropertiesDifference(propsA: IPropertyTemplate[], propsB: IPropertyT
     return diff
 }
 
+// isVisibilityEqual compares two visibility conditions structurally. optionIds
+// is treated as a set, so reordering it is not a change.
+function isVisibilityEqual(visA?: IPropertyVisibility, visB?: IPropertyVisibility): boolean {
+    if (!visA && !visB) {
+        return true
+    }
+
+    if (!visA || !visB) {
+        return false
+    }
+
+    if (visA.propertyId !== visB.propertyId) {
+        return false
+    }
+
+    if (visA.optionIds.length !== visB.optionIds.length) {
+        return false
+    }
+
+    return visA.optionIds.every((optionId) => visB.optionIds.includes(optionId))
+}
+
 // isPropertyEqual checks that both the contents of the property and
 // its options are equal
 function isPropertyEqual(propA: IPropertyTemplate, propB: IPropertyTemplate): boolean {
     for (const val of Object.keys(propA)) {
-        if (val !== 'options' && (propA as any)[val] !== (propB as any)[val]) {
+        if (val !== 'options' && val !== 'visibleWhen' && (propA as any)[val] !== (propB as any)[val]) {
             return false
         }
+    }
+
+    // Compared outside the loop above: that loop only walks the keys of propA,
+    // so it cannot see a visibleWhen that is present on propB and absent on propA.
+    if (!isVisibilityEqual(propA.visibleWhen, propB.visibleWhen)) {
+        return false
     }
 
     if (propA.options.length !== propB.options.length) {
@@ -322,6 +373,7 @@ export {
     PropertyTypeEnum,
     IPropertyOption,
     IPropertyTemplate,
+    IPropertyVisibility,
     BoardGroup,
     createBoard,
     BoardTypes,
