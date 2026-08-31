@@ -29,7 +29,6 @@ export const useMoveCardsToBoard = (fromBoardId: string, cardIds: string[], onMo
     const [toBoardId, setToBoardId] = useState('')
 
     const moveCards = async () => {
-
         // Dismiss the dialog before awaiting the move. onMoved usually closes the
         // card dialog, which unmounts this hook, so clearing the state afterwards
         // would be a state update on an unmounted component.
@@ -39,7 +38,6 @@ export const useMoveCardsToBoard = (fromBoardId: string, cardIds: string[], onMo
             await mutator.moveCardsToBoard(fromBoardId, cardIds, toBoardId)
             onMoved?.()
         } catch (error) {
-            
             // The server says why a move was rejected. Show that rather than a
             // generic failure.
             sendFlashMessage({content: (error as Error).message, severity: 'high'})
