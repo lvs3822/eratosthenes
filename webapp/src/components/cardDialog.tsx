@@ -14,6 +14,7 @@ import {getCard} from '../store/cards'
 import {getCardComments} from '../store/comments'
 import {getCardContents} from '../store/contents'
 import {useAppDispatch, useAppSelector} from '../store/hooks'
+import {useMoveCardsToBoard} from '../hooks/moveCardsToBoard'
 import TelemetryClient, {TelemetryActions, TelemetryCategory} from '../telemetry/telemetryClient'
 import {Utils} from '../utils'
 import CompassIcon from '../widgets/icons/compassIcon'
@@ -55,6 +56,10 @@ const CardDialog = (props: Props): JSX.Element => {
     const intl = useIntl()
     const dispatch = useAppDispatch()
     const isTemplate = card && card.fields.isTemplate
+
+    // The card leaves this board, so the dialog would be showing a card that no
+    // longer belongs here. Close it, the same way deleting a card does.
+    const {onClickMoveToBoard, moveCardsDialog} = useMoveCardsToBoard(board.id, [props.cardId], props.onClose)
 
     const [showConfirmationDialogBox, setShowConfirmationDialogBox] = useState<boolean>(false)
     const makeTemplateClicked = async () => {
@@ -115,6 +120,7 @@ const CardDialog = (props: Props): JSX.Element => {
             cardId={props.cardId}
             boardId={board.id}
             onClickDelete={handleDeleteButtonOnClick}
+            onClickMoveToBoard={onClickMoveToBoard}
         >
             {!isTemplate &&
             <BoardPermissionGate permissions={[Permission.ManageBoardProperties]}>
@@ -267,6 +273,8 @@ const CardDialog = (props: Props): JSX.Element => {
             </Dialog>
 
             {showConfirmationDialogBox && <ConfirmationDialogBox dialogBox={confirmDialogProps}/>}
+
+            {moveCardsDialog}
         </>
     )
 }

@@ -7,6 +7,7 @@ import {Board, IPropertyTemplate} from '../../blocks/board'
 import {Card} from '../../blocks/card'
 import {ContentBlock} from '../../blocks/contentBlock'
 import {useSortable} from '../../hooks/sortable'
+import {useMoveCardsToBoard} from '../../hooks/moveCardsToBoard'
 import mutator from '../../mutator'
 import {getCardContents} from '../../store/contents'
 import {useAppSelector} from '../../store/hooks'
@@ -41,6 +42,7 @@ const GalleryCard = (props: Props) => {
     const {card, board} = props
     const [isDragging, isOver, cardRef] = useSortable('card', card, props.isManualSort && !props.readonly, props.onDrop)
     const contents = useAppSelector(getCardContents(card.id))
+    const {onClickMoveToBoard, moveCardsDialog} = useMoveCardsToBoard(card.boardId, [card.id])
     const [showConfirmationDialogBox, setShowConfirmationDialogBox] = useState<boolean>(false)
 
     const visiblePropertyTemplates = props.visiblePropertyTemplates || []
@@ -94,6 +96,7 @@ const GalleryCard = (props: Props) => {
                             cardId={card!.id}
                             boardId={card!.boardId}
                             onClickDelete={() => setShowConfirmationDialogBox(true)}
+                            onClickMoveToBoard={onClickMoveToBoard}
                             onClickDuplicate={() => {
                                 TelemetryClient.trackEvent(TelemetryCategory, TelemetryActions.DuplicateCard, {board: board.id, card: card.id})
                                 mutator.duplicateCard(card.id, board.id)
@@ -171,6 +174,7 @@ const GalleryCard = (props: Props) => {
                     />}
             </div>
             {showConfirmationDialogBox && <ConfirmationDialogBox dialogBox={confirmDialogProps}/>}
+            {moveCardsDialog}
         </>
     )
 }

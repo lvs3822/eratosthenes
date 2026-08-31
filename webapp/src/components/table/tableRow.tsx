@@ -10,6 +10,7 @@ import mutator from '../../mutator'
 import Button from '../../widgets/buttons/button'
 import Editable from '../../widgets/editable'
 import {useSortable} from '../../hooks/sortable'
+import {useMoveCardsToBoard} from '../../hooks/moveCardsToBoard'
 
 import {Utils} from '../../utils'
 
@@ -53,6 +54,7 @@ const TableRow = (props: Props) => {
     const [title, setTitle] = useState(props.card.title || '')
     const isGrouped = Boolean(groupById)
     const [isDragging, isOver, cardRef] = useSortable('card', card, !props.readonly && (isManualSort || isGrouped), props.onDrop)
+    const {onClickMoveToBoard, moveCardsDialog} = useMoveCardsToBoard(card.boardId, [card.id])
     const [showConfirmationDialogBox, setShowConfirmationDialogBox] = useState<boolean>(false)
     const columnResize = useColumnResize()
 
@@ -197,6 +199,7 @@ const TableRow = (props: Props) => {
                             cardId={card.id}
                             boardId={card.boardId}
                             onClickDelete={handleDeleteButtonOnClick}
+                            onClickMoveToBoard={onClickMoveToBoard}
                             onClickDuplicate={() => {
                                 mutator.duplicateCard(
                                     card.id,
@@ -248,6 +251,7 @@ const TableRow = (props: Props) => {
             })}
 
             {showConfirmationDialogBox && <ConfirmationDialogBox dialogBox={confirmDialogProps}/>}
+            {moveCardsDialog}
         </div>
     )
 }

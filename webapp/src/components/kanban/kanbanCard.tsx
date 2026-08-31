@@ -6,6 +6,7 @@ import {useIntl} from 'react-intl'
 import {Board, IPropertyTemplate} from '../../blocks/board'
 import {Card} from '../../blocks/card'
 import {useSortable} from '../../hooks/sortable'
+import {useMoveCardsToBoard} from '../../hooks/moveCardsToBoard'
 import mutator from '../../mutator'
 import TelemetryClient, {TelemetryActions, TelemetryCategory} from '../../telemetry/telemetryClient'
 import {Utils} from '../../utils'
@@ -42,6 +43,8 @@ const KanbanCard = (props: Props) => {
     if (props.isManualSort && isOver) {
         className += ' dragover'
     }
+
+    const {onClickMoveToBoard, moveCardsDialog} = useMoveCardsToBoard(card.boardId, [card.id])
 
     const [showConfirmationDialogBox, setShowConfirmationDialogBox] = useState<boolean>(false)
     const handleDeleteCard = useCallback(() => {
@@ -100,6 +103,7 @@ const KanbanCard = (props: Props) => {
                         cardId={card!.id}
                         boardId={card!.boardId}
                         onClickDelete={handleDeleteButtonOnClick}
+                        onClickMoveToBoard={onClickMoveToBoard}
                         onClickDuplicate={() => {
                             TelemetryClient.trackEvent(TelemetryCategory, TelemetryActions.DuplicateCard, {board: board.id, card: card.id})
                             mutator.duplicateCard(
@@ -148,6 +152,8 @@ const KanbanCard = (props: Props) => {
             </div>
 
             {showConfirmationDialogBox && <ConfirmationDialogBox dialogBox={confirmDialogProps}/>}
+
+            {moveCardsDialog}
 
         </>
     )

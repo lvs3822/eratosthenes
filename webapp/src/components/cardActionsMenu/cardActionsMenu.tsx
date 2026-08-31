@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {ReactNode} from 'react'
+import React, {ReactNode, useMemo} from 'react'
 import {useIntl} from 'react-intl'
 
 import DeleteIcon from '../../widgets/icons/delete'
@@ -9,11 +9,13 @@ import Menu from '../../widgets/menu'
 import BoardPermissionGate from '../permissions/boardPermissionGate'
 import DuplicateIcon from '../../widgets/icons/duplicate'
 import LinkIcon from '../../widgets/icons/Link'
+import CompassIcon from '../../widgets/icons/compassIcon'
 import {Utils} from '../../utils'
 import {Permission} from '../../constants'
 import {sendFlashMessage} from '../flashMessages'
 import {IUser} from '../../user'
 import {getMe} from '../../store/users'
+import {getMySortedBoards} from '../../store/boards'
 import {useAppSelector} from '../../store/hooks'
 import TelemetryClient, {TelemetryActions, TelemetryCategory} from '../../telemetry/telemetryClient'
 
@@ -22,6 +24,7 @@ type Props = {
     boardId: string
     onClickDelete: () => void
     onClickDuplicate?: () => void
+    onClickMoveToBoard?: (toBoardId: string) => void
     children?: ReactNode
 }
 
@@ -29,7 +32,12 @@ export const CardActionsMenu = (props: Props): JSX.Element => {
     const {cardId} = props
 
     const me = useAppSelector<IUser|null>(getMe)
+    const boards = useAppSelector(getMySortedBoards)
     const intl = useIntl()
+
+    // getMySortedBoards only holds the current team's boards and keeps templates
+    // in a separate slice, so the current board is all that is left to exclude.
+    const moveToBoards = useMemo(() => boards.filter((board) => board.id !== props.boardId), [boards, props.boardId])
 
     const handleDeleteCard = () => {
         TelemetryClient.trackEvent(TelemetryCategory, TelemetryActions.DeleteCard, {board: props.boardId, card: props.cardId})
@@ -60,6 +68,24 @@ export const CardActionsMenu = (props: Props): JSX.Element => {
                     onClick={handleDuplicateCard}
                 />}
             </BoardPermissionGate>
+            {props.onClickMoveToBoard && moveToBoards.length > 0 &&
+            <BoardPermissionGate permissions={[Permission.ManageBoardCards]}>
+                <Menu.SubMenu
+                    id='moveToBoard'
+                    icon={<CompassIcon icon='arrow-right'/>}
+                    name={intl.formatMessage({id: 'CardActionsMenu.moveToBoard', defaultMessage: 'Move to board'})}
+                    position='left'
+                >
+                    {moveToBoards.map((board) => (
+                        <Menu.Text
+                            key={board.id}
+                            id={board.id}
+                            name={board.title || intl.formatMessage({id: 'ViewTitle.untitled-board', defaultMessage: 'Untitled board'})}
+                            onClick={() => props.onClickMoveToBoard?.(board.id)}
+                        />
+                    ))}
+                </Menu.SubMenu>
+            </BoardPermissionGate>}
             {me?.id !== 'single-user' &&
                 <Menu.Text
                     icon={<LinkIcon/>}
