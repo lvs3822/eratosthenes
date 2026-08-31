@@ -116,6 +116,7 @@ exports[`src/components/gallery/GalleryCard with a comment content should match 
                 />
               </div>
             </div>
+            <div />
             <div>
               <div
                 aria-label="Copy link"
@@ -293,6 +294,7 @@ exports[`src/components/gallery/GalleryCard with an image content should match s
                 />
               </div>
             </div>
+            <div />
             <div>
               <div
                 aria-label="Copy link"
@@ -508,6 +510,7 @@ exports[`src/components/gallery/GalleryCard with many contents should match snap
                 />
               </div>
             </div>
+            <div />
             <div>
               <div
                 aria-label="Copy link"
@@ -689,6 +692,7 @@ exports[`src/components/gallery/GalleryCard with many images content should matc
                 />
               </div>
             </div>
+            <div />
             <div>
               <div
                 aria-label="Copy link"
@@ -1107,6 +1111,7 @@ exports[`src/components/gallery/GalleryCard without block content should match s
                 />
               </div>
             </div>
+            <div />
             <div>
               <div
                 aria-label="Copy link"

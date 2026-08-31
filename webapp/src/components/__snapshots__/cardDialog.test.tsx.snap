@@ -669,6 +669,7 @@ exports[`components/cardDialog return cardDialog menu content 1`] = `
                         />
                       </div>
                     </div>
+                    <div />
                     <div>
                       <div
                         aria-label="Copy link"

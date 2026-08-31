@@ -275,6 +275,7 @@ exports[`src/components/gallery/Gallery should match snapshot 1`] = `
                   />
                 </div>
               </div>
+              <div />
               <div>
                 <div
                   aria-label="Copy link"
@@ -418,6 +419,7 @@ exports[`src/components/gallery/Gallery should match snapshot without permission
             <div
               class="menu-options"
             >
+              <div />
               <div />
               <div>
                 <div
