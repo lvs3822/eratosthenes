@@ -970,6 +970,24 @@ class Mutator {
         await octoClient.moveBoardToCategory(teamID, blockID, toCategoryID, fromCategoryID)
     }
 
+    // Moving cards to another board is deliberately not undoable. The server
+    // discards the card property values, so moving them back would put the cards
+    // in the right place with their data already gone: an undo that looks like a
+    // restore but is not one. The undo stack is cleared for the same reason,
+    // because every entry on it assumes its block is still on the board it was on,
+    // and a stale "change property" undo would write a property id that does not
+    // exist on the target board.
+    //
+    // Nothing is dispatched to the store here. The server broadcasts a delete on
+    // the source board and a change on the target board for each moved block, and
+    // the websocket client coalesces the pair by block id, so the store converges
+    // on its own. Dispatching here as well would race with those events.
+    async moveCardsToBoard(fromBoardId: string, cardIds: string[], toBoardId: string): Promise<Card[]> {
+        const movedCards = await octoClient.moveCardsToBoard(fromBoardId, cardIds, toBoardId)
+        undoManager.clear()
+        return movedCards || []
+    }
+
     async followBlock(blockId: string, blockType: string, userId: string) {
         await undoManager.perform(
             async () => {

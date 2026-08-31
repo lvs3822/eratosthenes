@@ -2,6 +2,7 @@
 // See LICENSE.txt for license information.
 import {Block, BlockPatch, FileInfo} from './blocks/block'
 import {Board, BoardsAndBlocks, BoardsAndBlocksPatch, BoardPatch, BoardMember} from './blocks/board'
+import {Card} from './blocks/card'
 import {ISharing} from './blocks/sharing'
 import {OctoUtils} from './octoUtils'
 import {IUser, UserConfigPatch, UserPreference} from './user'
@@ -792,6 +793,27 @@ class OctoClient {
         }
 
         return this.getJson<Block[]>(response, [] as Block[])
+    }
+
+    async moveCardsToBoard(fromBoardId: string, cardIds: string[], toBoardId: string): Promise<Card[] | undefined> {
+        Utils.log(`moveCardsToBoard: ${cardIds.length} card(s) from board ${fromBoardId} to board ${toBoardId}`)
+        const body = JSON.stringify({cardIDs: cardIds, toBoardID: toBoardId})
+        const path = `/api/v2/boards/${encodeURIComponent(fromBoardId)}/cards/move`
+        const response = await fetch(this.getBaseURL() + path, {
+            method: 'POST',
+            headers: this.headers(),
+            body,
+        })
+
+        if (response.status !== 200) {
+            // The server explains why a move was rejected (a template card, a card
+            // of another board, a missing permission). Surface that message so the
+            // caller can show it instead of a generic failure.
+            const json = (await this.getJson(response, {})) as {error?: string}
+            throw new Error(json.error || `moveCardsToBoard failed with status ${response.status}`)
+        }
+
+        return this.getJson<Card[]>(response, [] as Card[])
     }
 
     async getBlocksForBoard(teamId: string, boardId: string): Promise<Board[]> {
