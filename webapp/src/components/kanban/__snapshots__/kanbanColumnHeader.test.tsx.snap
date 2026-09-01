@@ -126,6 +126,38 @@ exports[`src/components/kanban/kanbanColumnHeader return kanbanColumnHeader and 
             </div>
             <div>
               <div
+                aria-label="Properties for this column"
+                class="MenuOption TextOption menu-option menu-option--with-subtext menu-option--disabled"
+                role="button"
+              >
+                <div
+                  class="d-flex"
+                >
+                  <div
+                    class="noicon"
+                  />
+                </div>
+                <div
+                  class="menu-option__content"
+                >
+                  <div
+                    class="menu-name"
+                  >
+                    Properties for this column
+                  </div>
+                  <div
+                    class="menu-subtext text-75 mt-1"
+                  >
+                    Available when the board is grouped by a Select property
+                  </div>
+                </div>
+                <div
+                  class="noicon"
+                />
+              </div>
+            </div>
+            <div>
+              <div
                 aria-label="Delete"
                 class="MenuOption TextOption menu-option"
                 role="button"
