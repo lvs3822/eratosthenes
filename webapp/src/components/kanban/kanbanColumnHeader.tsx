@@ -25,6 +25,7 @@ import {useHasCurrentBoardPermissions} from '../../hooks/permissions'
 import BoardPermissionGate from '../permissions/boardPermissionGate'
 
 import {KanbanCalculation} from './calculation/calculation'
+import ColumnPropertiesMenu from './columnPropertiesMenu'
 
 type Props = {
     board: Board
@@ -82,6 +83,63 @@ export default function KanbanColumnHeader(props: Props): JSX.Element {
     let className = 'octo-board-header-cell KanbanColumnHeader'
     if (isOver) {
         className += ' dragover'
+    }
+
+    // Menu wraps every child it is handed in a div, and React.Children.map fires
+    // for falsy children too, so an inline {cond && ...} that evaluates false
+    // leaves an empty wrapper div behind, which then steals hover from its
+    // neighbours and collapses open submenus. Building the list avoids that.
+    const columnMenuItems: JSX.Element[] = [
+        <Menu.Text
+            key='hide'
+            id='hide'
+            icon={<HideIcon/>}
+            name={intl.formatMessage({id: 'BoardComponent.hide', defaultMessage: 'Hide'})}
+            onClick={() => mutator.hideViewColumn(board.id, activeView, group.option.id || '')}
+        />,
+        <Menu.Text
+            key='deleteAllCards'
+            id='deleteAllCards'
+            icon={<DeleteIcon/>}
+            name={intl.formatMessage({id: 'BoardComponent.delete-all-cards', defaultMessage: 'Delete all cards ({count})'}, {count: group.cards.length})}
+            disabled={group.cards.length === 0}
+            onClick={() => deleteCardsInColumn(group.cards)}
+        />,
+    ]
+
+    // The empty column is the absence of a value rather than a column, so there
+    // is nothing here to scope a property to and the entry is omitted outright.
+    if (group.option.id) {
+        columnMenuItems.push(
+            <ColumnPropertiesMenu
+                key='columnProperties'
+                board={board}
+                groupByProperty={groupByProperty}
+                optionId={group.option.id}
+            />,
+        )
+    }
+
+    if (canEditOption) {
+        columnMenuItems.push(
+            <React.Fragment key='option'>
+                <Menu.Text
+                    id='delete'
+                    icon={<DeleteIcon/>}
+                    name={intl.formatMessage({id: 'BoardComponent.delete', defaultMessage: 'Delete'})}
+                    onClick={() => mutator.deletePropertyOption(board.id, board.cardProperties, groupByProperty!, group.option)}
+                />
+                <Menu.Separator/>
+                {Object.entries(Constants.menuColors).map(([key, color]) => (
+                    <Menu.Color
+                        key={key}
+                        id={key}
+                        name={color}
+                        onClick={() => mutator.changePropertyOptionColor(board.id, board.cardProperties, groupByProperty!, group.option, key)}
+                    />
+                ))}
+            </React.Fragment>,
+        )
     }
 
     const groupCalculation = props.activeView.fields.kanbanCalculations[props.group.option.id]
@@ -164,39 +222,7 @@ export default function KanbanColumnHeader(props: Props): JSX.Element {
                     <BoardPermissionGate permissions={[Permission.ManageBoardProperties]}>
                         <MenuWrapper>
                             <IconButton icon={<OptionsIcon/>}/>
-                            <Menu>
-                                <Menu.Text
-                                    id='hide'
-                                    icon={<HideIcon/>}
-                                    name={intl.formatMessage({id: 'BoardComponent.hide', defaultMessage: 'Hide'})}
-                                    onClick={() => mutator.hideViewColumn(board.id, activeView, group.option.id || '')}
-                                />
-                                <Menu.Text
-                                    id='deleteAllCards'
-                                    icon={<DeleteIcon/>}
-                                    name={intl.formatMessage({id: 'BoardComponent.delete-all-cards', defaultMessage: 'Delete all cards ({count})'}, {count: group.cards.length})}
-                                    disabled={group.cards.length === 0}
-                                    onClick={() => deleteCardsInColumn(group.cards)}
-                                />
-                                {canEditOption &&
-                                    <>
-                                        <Menu.Text
-                                            id='delete'
-                                            icon={<DeleteIcon/>}
-                                            name={intl.formatMessage({id: 'BoardComponent.delete', defaultMessage: 'Delete'})}
-                                            onClick={() => mutator.deletePropertyOption(board.id, board.cardProperties, groupByProperty!, group.option)}
-                                        />
-                                        <Menu.Separator/>
-                                        {Object.entries(Constants.menuColors).map(([key, color]) => (
-                                            <Menu.Color
-                                                key={key}
-                                                id={key}
-                                                name={color}
-                                                onClick={() => mutator.changePropertyOptionColor(board.id, board.cardProperties, groupByProperty!, group.option, key)}
-                                            />
-                                        ))}
-                                    </>}
-                            </Menu>
+                            <Menu>{columnMenuItems}</Menu>
                         </MenuWrapper>
                     </BoardPermissionGate>
                     <BoardPermissionGate permissions={[Permission.ManageBoardCards]}>
