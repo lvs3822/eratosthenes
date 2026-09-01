@@ -27,16 +27,9 @@ type Props = {
     optionId: string
 }
 
-// Why a property cannot be toggled from this column.
-type LockReason =
-    | {kind: 'otherSource', sourceName: string}
-    | {kind: 'self'}
-    | {kind: 'wouldCycle'}
-
 type Buckets = {
     scoped: IPropertyTemplate[]
     always: IPropertyTemplate[]
-    locked: Array<{template: IPropertyTemplate, reason: LockReason}>
 }
 
 // Only a select property has the option columns this screen edits. multiSelect
@@ -47,24 +40,27 @@ function isEligibleGroupBy(groupByProperty?: IPropertyTemplate): boolean {
 }
 
 function bucketProperties(board: Board, groupByProperty: IPropertyTemplate): Buckets {
-    const buckets: Buckets = {scoped: [], always: [], locked: []}
+    const buckets: Buckets = {scoped: [], always: []}
 
     board.cardProperties.forEach((template) => {
+        // Three kinds of property are not listed here at all: the group-by
+        // property itself, which would be a self-reference; anything already
+        // conditioned on a different property, which this screen cannot edit
+        // without discarding that condition; and anything whose declared chain
+        // would close a loop. The invariant above still holds — none of these can
+        // be toggled from here — it is simply enforced by omission rather than by
+        // a disabled row carrying the reason.
         if (template.id === groupByProperty.id) {
-            buckets.locked.push({template, reason: {kind: 'self'}})
             return
         }
 
         const {visibleWhen} = template
         if (visibleWhen && visibleWhen.propertyId !== groupByProperty.id) {
-            const source = board.cardProperties.find((o) => o.id === visibleWhen.propertyId)
-            buckets.locked.push({template, reason: {kind: 'otherSource', sourceName: source ? source.name : visibleWhen.propertyId}})
             return
         }
 
         // The property menu's own rule, applied from this side.
         if (!conditionSourceCandidates(template, board.cardProperties).some((o) => o.id === groupByProperty.id)) {
-            buckets.locked.push({template, reason: {kind: 'wouldCycle'}})
             return
         }
 
@@ -94,7 +90,7 @@ const ColumnPropertiesMenu = (props: Props): JSX.Element => {
     const eligible = isEligibleGroupBy(groupByProperty)
 
     const buckets = useMemo(
-        () => (eligible ? bucketProperties(board, groupByProperty!) : {scoped: [], always: [], locked: []}),
+        () => (eligible ? bucketProperties(board, groupByProperty!) : {scoped: [], always: []}),
         [board.cardProperties, groupByProperty, eligible],
     )
 
@@ -127,26 +123,6 @@ const ColumnPropertiesMenu = (props: Props): JSX.Element => {
         }
     }
 
-    const lockReasonText = (reason: LockReason): string => {
-        switch (reason.kind) {
-        case 'otherSource':
-            return intl.formatMessage({
-                id: 'BoardComponent.column-properties-other-source',
-                defaultMessage: 'Conditioned on {propertyName}',
-            }, {propertyName: reason.sourceName})
-        case 'self':
-            return intl.formatMessage({
-                id: 'BoardComponent.column-properties-self',
-                defaultMessage: "A property can't depend on itself",
-            })
-        default:
-            return intl.formatMessage({
-                id: 'BoardComponent.column-properties-would-cycle',
-                defaultMessage: '{propertyName} already depends on this property',
-            }, {propertyName: groupByProperty!.name})
-        }
-    }
-
     // Menu wraps every child in a div and React.Children.map fires for falsy
     // children too, so the list is built here rather than with inline
     // conditionals. SubMenuOption renders its own children raw, but keeping one
@@ -175,10 +151,6 @@ const ColumnPropertiesMenu = (props: Props): JSX.Element => {
                     name={template.name}
                     isOn={checked}
                     disabled={isOnlyColumn}
-                    subText={isOnlyColumn ? intl.formatMessage({
-                        id: 'BoardComponent.column-properties-only-column',
-                        defaultMessage: "This is the only column showing this property. Remove the condition from the property's menu on a card.",
-                    }) : undefined}
                     suppressItemClicked={true}
                     onClick={() => onToggle(template, !checked)}
                 />,
@@ -194,26 +166,6 @@ const ColumnPropertiesMenu = (props: Props): JSX.Element => {
         )
         buckets.always.forEach((template) => {
             items.push(<Menu.Label key={template.id}>{template.name}</Menu.Label>)
-        })
-    }
-
-    if (buckets.locked.length > 0) {
-        items.push(
-            <Menu.Label key='locked-header'>
-                {intl.formatMessage({id: 'BoardComponent.column-properties-locked', defaultMessage: 'Not editable here'})}
-            </Menu.Label>,
-        )
-        buckets.locked.forEach(({template, reason}) => {
-            items.push(
-                <Menu.Text
-                    key={template.id}
-                    id={template.id}
-                    name={template.name}
-                    disabled={true}
-                    subText={lockReasonText(reason)}
-                    onClick={() => undefined}
-                />,
-            )
         })
     }
 

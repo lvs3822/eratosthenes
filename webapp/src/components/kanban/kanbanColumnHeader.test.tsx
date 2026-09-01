@@ -207,7 +207,7 @@ describe('src/components/kanban/kanbanColumnHeader', () => {
         const buttonMenuWrapper = screen.getByRole('button', {name: 'menuwrapper'})
         expect(buttonMenuWrapper).toBeDefined()
         userEvent.click(buttonMenuWrapper)
-        const buttonDelete = within(buttonMenuWrapper).getByRole('button', {name: 'Delete'})
+        const buttonDelete = within(buttonMenuWrapper).getByRole('button', {name: 'Delete column'})
         expect(buttonDelete).toBeDefined()
         userEvent.click(buttonDelete)
         expect(mockedMutator.deletePropertyOption).toBeCalledTimes(1)

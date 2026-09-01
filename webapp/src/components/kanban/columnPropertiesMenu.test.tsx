@@ -134,7 +134,6 @@ describe('components/kanban/ColumnPropertiesMenu', () => {
         const option = container.querySelector('.SwitchOption[aria-label="Blocked reason"]')
 
         expect(option).toHaveClass('menu-option--disabled')
-        expect(screen.getByText(/only column showing this property/)).toBeInTheDocument()
 
         fireEvent.click(option!)
         expect(mockedMutator.changePropertyVisibility).not.toHaveBeenCalled()
@@ -167,7 +166,7 @@ describe('components/kanban/ColumnPropertiesMenu', () => {
         expect(container.querySelector('.SwitchOption[aria-label="Half configured"]')).toBeNull()
     })
 
-    test('should lock a property conditioned on a different property', () => {
+    test('should omit a property conditioned on a different property', () => {
         const priority: IPropertyTemplate = {
             id: 'priority_id',
             name: 'Priority',
@@ -184,18 +183,18 @@ describe('components/kanban/ColumnPropertiesMenu', () => {
 
         renderMenu(boardWith([status, priority, escalation]), status)
 
-        expect(screen.getByText('Not editable here')).toBeInTheDocument()
-        expect(screen.getByText('Conditioned on Priority')).toBeInTheDocument()
+        // Not shown at all, but still unreachable: this screen cannot construct a
+        // condition the property menu would refuse.
+        expect(screen.queryByText('Escalation path')).toBeNull()
     })
 
-    test('should lock the group-by property itself as a self reference', () => {
-        renderMenu(boardWith([status]), status)
+    test('should omit the group-by property itself, which would be a self reference', () => {
+        const {container} = renderMenu(boardWith([status]), status)
 
-        expect(screen.getByText('Not editable here')).toBeInTheDocument()
-        expect(screen.getByText("A property can't depend on itself")).toBeInTheDocument()
+        expect(container.querySelector('.SwitchOption[aria-label="Status"]')).toBeNull()
     })
 
-    test('should lock a property the group-by property already depends on', () => {
+    test('should omit a property the group-by property already depends on', () => {
         // Status depends on Phase, so conditioning Phase on Status would close a
         // loop. The property menu refuses this; so must this screen.
         const phase: IPropertyTemplate = {
@@ -209,8 +208,8 @@ describe('components/kanban/ColumnPropertiesMenu', () => {
             visibleWhen: {propertyId: 'phase_id', optionIds: ['early']},
         }
 
-        renderMenu(boardWith([cyclicStatus, phase]), cyclicStatus)
+        const {container} = renderMenu(boardWith([cyclicStatus, phase]), cyclicStatus)
 
-        expect(screen.getByText('Status already depends on this property')).toBeInTheDocument()
+        expect(container.querySelector('.SwitchOption[aria-label="Phase"]')).toBeNull()
     })
 })

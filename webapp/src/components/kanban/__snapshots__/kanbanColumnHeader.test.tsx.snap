@@ -95,37 +95,6 @@ exports[`src/components/kanban/kanbanColumnHeader return kanbanColumnHeader and 
             </div>
             <div>
               <div
-                aria-label="Delete all cards (1)"
-                class="MenuOption TextOption menu-option"
-                role="button"
-              >
-                <div
-                  class="d-flex"
-                >
-                  <div
-                    class="menu-option__icon"
-                  >
-                    <i
-                      class="CompassIcon icon-trash-can-outline DeleteIcon trash-can-outline"
-                    />
-                  </div>
-                </div>
-                <div
-                  class="menu-option__content"
-                >
-                  <div
-                    class="menu-name"
-                  >
-                    Delete all cards (1)
-                  </div>
-                </div>
-                <div
-                  class="noicon"
-                />
-              </div>
-            </div>
-            <div>
-              <div
                 aria-label="Properties for this column"
                 class="MenuOption TextOption menu-option menu-option--with-subtext menu-option--disabled"
                 role="button"
@@ -158,7 +127,7 @@ exports[`src/components/kanban/kanbanColumnHeader return kanbanColumnHeader and 
             </div>
             <div>
               <div
-                aria-label="Delete"
+                aria-label="Delete all cards (1)"
                 class="MenuOption TextOption menu-option"
                 role="button"
               >
@@ -179,7 +148,38 @@ exports[`src/components/kanban/kanbanColumnHeader return kanbanColumnHeader and 
                   <div
                     class="menu-name"
                   >
-                    Delete
+                    Delete all cards (1)
+                  </div>
+                </div>
+                <div
+                  class="noicon"
+                />
+              </div>
+            </div>
+            <div>
+              <div
+                aria-label="Delete column"
+                class="MenuOption TextOption menu-option"
+                role="button"
+              >
+                <div
+                  class="d-flex"
+                >
+                  <div
+                    class="menu-option__icon"
+                  >
+                    <i
+                      class="CompassIcon icon-trash-can-outline DeleteIcon trash-can-outline"
+                    />
+                  </div>
+                </div>
+                <div
+                  class="menu-option__content"
+                >
+                  <div
+                    class="menu-name"
+                  >
+                    Delete column
                   </div>
                 </div>
                 <div

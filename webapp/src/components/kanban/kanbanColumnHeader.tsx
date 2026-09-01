@@ -97,14 +97,6 @@ export default function KanbanColumnHeader(props: Props): JSX.Element {
             name={intl.formatMessage({id: 'BoardComponent.hide', defaultMessage: 'Hide'})}
             onClick={() => mutator.hideViewColumn(board.id, activeView, group.option.id || '')}
         />,
-        <Menu.Text
-            key='deleteAllCards'
-            id='deleteAllCards'
-            icon={<DeleteIcon/>}
-            name={intl.formatMessage({id: 'BoardComponent.delete-all-cards', defaultMessage: 'Delete all cards ({count})'}, {count: group.cards.length})}
-            disabled={group.cards.length === 0}
-            onClick={() => deleteCardsInColumn(group.cards)}
-        />,
     ]
 
     // The empty column is the absence of a value rather than a column, so there
@@ -120,13 +112,24 @@ export default function KanbanColumnHeader(props: Props): JSX.Element {
         )
     }
 
+    columnMenuItems.push(
+        <Menu.Text
+            key='deleteAllCards'
+            id='deleteAllCards'
+            icon={<DeleteIcon/>}
+            name={intl.formatMessage({id: 'BoardComponent.delete-all-cards', defaultMessage: 'Delete all cards ({count})'}, {count: group.cards.length})}
+            disabled={group.cards.length === 0}
+            onClick={() => deleteCardsInColumn(group.cards)}
+        />,
+    )
+
     if (canEditOption) {
         columnMenuItems.push(
             <React.Fragment key='option'>
                 <Menu.Text
                     id='delete'
                     icon={<DeleteIcon/>}
-                    name={intl.formatMessage({id: 'BoardComponent.delete', defaultMessage: 'Delete'})}
+                    name={intl.formatMessage({id: 'BoardComponent.delete-column', defaultMessage: 'Delete column'})}
                     onClick={() => mutator.deletePropertyOption(board.id, board.cardProperties, groupByProperty!, group.option)}
                 />
                 <Menu.Separator/>
