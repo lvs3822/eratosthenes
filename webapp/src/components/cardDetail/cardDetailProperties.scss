@@ -1,0 +1,21 @@
+.CardDetailProperties {
+    .octo-propertyname {
+        align-items: center;
+        display: flex;
+        gap: 4px;
+    }
+
+    .CardDetailProperties__condition {
+        background: rgba(var(--center-channel-color-rgb), 0.08);
+        border-radius: 4px;
+        color: rgba(var(--center-channel-color-rgb), 0.64);
+        font-size: 11px;
+        line-height: 16px;
+        padding: 0 6px;
+        white-space: nowrap;
+    }
+
+    .CardDetailProperties__condition--readonly {
+        cursor: default;
+    }
+}

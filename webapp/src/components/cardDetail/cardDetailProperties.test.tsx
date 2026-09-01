@@ -301,6 +301,74 @@ describe('components/cardDetail/CardDetailProperties', () => {
             expect(screen.queryByRole('button', {name: 'Blocked reason'})).not.toBeNull()
         })
 
+        it('should render the condition badge next to the property name', () => {
+            const blockedCard = TestBlockFactory.createCard(conditionalBoard)
+            blockedCard.fields.properties.status_id = 'status_blocked'
+
+            renderConditional(blockedCard)
+
+            expect(screen.getByText('only if Status: Blocked')).toBeInTheDocument()
+        })
+
+        it('should collapse a multi-option condition into a +N badge with the full set in the tooltip', () => {
+            const manyBoard = TestBlockFactory.createBoard()
+            manyBoard.cardProperties = conditionalBoard.cardProperties.map((o) => (o.id === 'reason_id' ? {
+                ...o,
+                visibleWhen: {propertyId: 'status_id', optionIds: ['status_blocked', 'status_todo']},
+            } : o))
+
+            const todoCard = TestBlockFactory.createCard(manyBoard)
+            todoCard.fields.properties.status_id = 'status_todo'
+
+            render(wrapIntl(
+                <ReduxProvider store={store}>
+                    <CardDetailProperties
+                        board={manyBoard}
+                        card={todoCard}
+                        cards={[todoCard]}
+                        activeView={view}
+                        views={views}
+                        readonly={false}
+                    />
+                </ReduxProvider>,
+            ))
+
+            const badge = screen.getByText('only if Status: Todo +1')
+            expect(badge).toBeInTheDocument()
+            expect(badge).toHaveAttribute('title', 'Status: Todo, Blocked')
+        })
+
+        it('should not render a badge for a condition whose source property is gone', () => {
+            const orphanBoard = TestBlockFactory.createBoard()
+            orphanBoard.cardProperties = [{
+                id: 'reason_id',
+                name: 'Blocked reason',
+                type: 'text',
+                options: [],
+                visibleWhen: {propertyId: 'deleted_id', optionIds: ['whatever']},
+            }]
+
+            const anyCard = TestBlockFactory.createCard(orphanBoard)
+
+            render(wrapIntl(
+                <ReduxProvider store={store}>
+                    <CardDetailProperties
+                        board={orphanBoard}
+                        card={anyCard}
+                        cards={[anyCard]}
+                        activeView={view}
+                        views={views}
+                        readonly={false}
+                    />
+                </ReduxProvider>,
+            ))
+
+            // Fails open, so the property is shown; claiming a live condition
+            // would be a lie.
+            expect(screen.getByRole('button', {name: 'Blocked reason'})).toBeInTheDocument()
+            expect(screen.queryByText(/only if/)).toBeNull()
+        })
+
         it('should show every property on a card template, even unmet ones', () => {
             const template = TestBlockFactory.createCard(conditionalBoard)
             template.fields.isTemplate = true
@@ -317,8 +385,11 @@ describe('components/cardDetail/CardDetailProperties', () => {
         expect(propertyLabel).toBeDefined()
         userEvent.click(propertyLabel!)
 
-        const deleteOption = container.querySelector('.MenuOption.TextOption')
-        expect(propertyLabel).toBeDefined()
+        // Target Delete by name. The menu now holds more than one TextOption, so
+        // taking the first one silently picks whichever entry happens to sort
+        // first in the DOM.
+        const deleteOption = container.querySelector('.MenuOption.TextOption[aria-label="Delete"]')
+        expect(deleteOption).toBeDefined()
         userEvent.click(deleteOption!)
 
         const confirmDialog = container.querySelector('.dialog.confirmation-dialog-box')

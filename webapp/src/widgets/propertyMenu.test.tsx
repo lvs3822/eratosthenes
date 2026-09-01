@@ -7,6 +7,7 @@ import '@testing-library/jest-dom'
 
 import {wrapIntl} from '../testUtils'
 import propsRegistry from '../properties'
+import {IPropertyTemplate} from '../blocks/board'
 
 import PropertyMenu from './propertyMenu'
 
@@ -120,5 +121,109 @@ describe('widgets/PropertyMenu', () => {
         const menuOpen = getByText(/Type: Text/i)
         fireEvent.click(menuOpen)
         expect(container).toMatchSnapshot()
+    })
+
+    describe('visibility conditions', () => {
+        const status: IPropertyTemplate = {
+            id: 'status_id',
+            name: 'Status',
+            type: 'select',
+            options: [
+                {id: 'status_todo', value: 'Todo', color: 'propColorDefault'},
+                {id: 'status_blocked', value: 'Blocked', color: 'propColorDefault'},
+            ],
+        }
+        const plainReason: IPropertyTemplate = {id: 'reason_id', name: 'Blocked reason', type: 'text', options: []}
+        const conditionalReason: IPropertyTemplate = {
+            ...plainReason,
+            visibleWhen: {propertyId: 'status_id', optionIds: ['status_blocked']},
+        }
+
+        function renderMenu(cardProperties: IPropertyTemplate[], onVisibilityChanged: jest.Mock) {
+            return render(wrapIntl(
+                <PropertyMenu
+                    propertyId={'reason_id'}
+                    propertyName={'Blocked reason'}
+                    propertyType={propsRegistry.get('text')}
+                    cardProperties={cardProperties}
+                    cards={[]}
+                    onTypeAndNameChanged={jest.fn()}
+                    onDelete={jest.fn()}
+                    onVisibilityChanged={onVisibilityChanged}
+                />,
+            ))
+        }
+
+        test('should offer an eligible source property and set an empty condition when picked', () => {
+            const onVisibilityChanged = jest.fn()
+            const {getByText} = renderMenu([status, plainReason], onVisibilityChanged)
+
+            fireEvent.mouseOver(getByText(/show only when/i))
+            expect(getByText('Show always')).toBeVisible()
+
+            fireEvent.click(getByText('Status'))
+
+            // No options yet, which by the resolver's rule means "no constraint",
+            // so nothing disappears mid-configuration.
+            expect(onVisibilityChanged).toHaveBeenCalledWith({propertyId: 'status_id', optionIds: []})
+        })
+
+        test('should list the source options once a source is set, and toggle them', () => {
+            const onVisibilityChanged = jest.fn()
+            const {getByText} = renderMenu([status, conditionalReason], onVisibilityChanged)
+
+            fireEvent.mouseOver(getByText(/show only when/i))
+            expect(getByText('Status is')).toBeVisible()
+
+            fireEvent.click(getByText('Todo'))
+            expect(onVisibilityChanged).toHaveBeenCalledWith({propertyId: 'status_id', optionIds: ['status_blocked', 'status_todo']})
+
+            fireEvent.click(getByText('Blocked'))
+            expect(onVisibilityChanged).toHaveBeenCalledWith({propertyId: 'status_id', optionIds: []})
+        })
+
+        test('should clear the condition from Show always', () => {
+            const onVisibilityChanged = jest.fn()
+            const {getByText} = renderMenu([status, conditionalReason], onVisibilityChanged)
+
+            fireEvent.mouseOver(getByText(/show only when/i))
+            fireEvent.click(getByText('Show always'))
+
+            expect(onVisibilityChanged).toHaveBeenCalledWith(undefined)
+        })
+
+        test('should not offer a property that would close a cycle', () => {
+            // status is itself conditioned on reason, so offering it back would
+            // make reason -> status -> reason.
+            const cyclicStatus: IPropertyTemplate = {
+                ...status,
+                visibleWhen: {propertyId: 'reason_id', optionIds: []},
+            }
+            const {getByText, queryByText} = renderMenu([cyclicStatus, plainReason], jest.fn())
+
+            fireEvent.mouseOver(getByText(/show only when/i))
+            expect(queryByText('Status')).toBeNull()
+        })
+
+        test('should show the entry disabled when no property can serve as a condition', () => {
+            const notes: IPropertyTemplate = {id: 'notes_id', name: 'Notes', type: 'text', options: []}
+            const {getByText} = renderMenu([notes, plainReason], jest.fn())
+
+            expect(getByText(/no select property/i)).toBeVisible()
+        })
+
+        test('should not show the entry at all without an onVisibilityChanged handler', () => {
+            const {queryByText} = render(wrapIntl(
+                <PropertyMenu
+                    propertyId={'reason_id'}
+                    propertyName={'Blocked reason'}
+                    propertyType={propsRegistry.get('text')}
+                    onTypeAndNameChanged={jest.fn()}
+                    onDelete={jest.fn()}
+                />,
+            ))
+
+            expect(queryByText(/show only when/i)).toBeNull()
+        })
     })
 })

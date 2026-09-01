@@ -1,6 +1,26 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+// Visibility conditions on card properties.
+//
+// TWO GRAPHS, DELIBERATELY DIFFERENT. This module walks the dependency graph in
+// two ways and they are not meant to agree:
+//
+//   Live edges (conditionEdge). Only a condition that can actually be evaluated
+//   right now forms an edge, so a condition whose source is gone, is the wrong
+//   type, or references only deleted options is a dead end. isPropertyVisible,
+//   visibleProperties and findVisibilityIssues all use this, because evaluation
+//   and diagnosis are about what currently resolves.
+//
+//   Declared edges (declaredEdge). Every visibleWhen.propertyId is an edge,
+//   whether or not it can be evaluated, and regardless of optionIds.
+//   conditionSourceCandidates uses this, because prevention is about what the
+//   schema DECLARES. A chain broken today by a deleted option would spring back
+//   into a cycle the moment somebody re-adds that option, so the editor must
+//   refuse to build it in the first place.
+//
+// If you are here to make these consistent: don't. That is the design.
+
 import {IPropertyTemplate, PropertyTypeEnum} from './blocks/board'
 import {Card} from './blocks/card'
 
@@ -238,6 +258,65 @@ function rotateToLowestIndex(cycle: string[], indexById: Map<string, number>): s
     return [...cycle.slice(pivot), ...cycle.slice(0, pivot)]
 }
 
+// The property this one names as its source, evaluable or not. This is the
+// declared graph described in the module header, so an empty optionIds still
+// counts: it is the state the editor sits in mid-configuration, and ignoring it
+// would let two properties be pointed at each other one switch at a time.
+function declaredEdge(template?: IPropertyTemplate): string | undefined {
+    return template?.visibleWhen?.propertyId
+}
+
+// Every property whose declared chain leads to targetId, targetId included.
+// Walks the reverse graph once rather than following each candidate's chain
+// forward, so this is O(n) rather than O(n^2), and the visited set makes a
+// pre-existing cycle elsewhere on the board harmless.
+function declaredDependents(targetId: string, allTemplates: readonly IPropertyTemplate[]): Set<string> {
+    const incoming = new Map<string, string[]>()
+    allTemplates.forEach((template) => {
+        const sourceId = declaredEdge(template)
+        if (sourceId === undefined) {
+            return
+        }
+
+        const dependents = incoming.get(sourceId)
+        if (dependents) {
+            dependents.push(template.id)
+        } else {
+            incoming.set(sourceId, [template.id])
+        }
+    })
+
+    const reaching = new Set<string>([targetId])
+    const queue = [targetId]
+    while (queue.length > 0) {
+        const id = queue.pop()!
+        const dependents = incoming.get(id) || []
+        dependents.forEach((dependentId) => {
+            if (!reaching.has(dependentId)) {
+                reaching.add(dependentId)
+                queue.push(dependentId)
+            }
+        })
+    }
+
+    return reaching
+}
+
+/**
+ * The properties this one may legally be conditioned on, in board order.
+ *
+ * Excludes the property itself, anything that is not a select or multiSelect,
+ * and anything whose declared chain leads back to this property. That last rule
+ * is what makes a cycle unconstructible from the editor rather than merely
+ * detectable afterwards, which is why it walks declared rather than live edges.
+ * See the module header.
+ */
+function conditionSourceCandidates(template: IPropertyTemplate, allTemplates: readonly IPropertyTemplate[]): IPropertyTemplate[] {
+    const wouldCycle = declaredDependents(template.id, allTemplates)
+
+    return allTemplates.filter((candidate) => !wouldCycle.has(candidate.id) && conditionSourceTypes.includes(candidate.type))
+}
+
 /**
  * Every problem with the visibility conditions on a board, independent of any
  * card. Nothing on a render path needs to call this: the resolver already fails
@@ -322,5 +401,6 @@ export {
     VisibilityIssue,
     isPropertyVisible,
     visibleProperties,
+    conditionSourceCandidates,
     findVisibilityIssues,
 }

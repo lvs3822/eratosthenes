@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 import {IPropertyTemplate, PropertyTypeEnum} from './blocks/board'
 import {Card} from './blocks/card'
-import {findVisibilityIssues, isPropertyVisible, visibleProperties} from './propertyVisibility'
+import {conditionSourceCandidates, findVisibilityIssues, isPropertyVisible, visibleProperties} from './propertyVisibility'
 import {TestBlockFactory} from './test/testBlockFactory'
 
 describe('src/propertyVisibility', () => {
@@ -195,6 +195,63 @@ describe('src/propertyVisibility', () => {
             // nothing memoised. A recursive resolver would overflow the stack here.
             expect(isPropertyVisible(templates[templates.length - 1], card, templates)).toBeTruthy()
             expect(visibleProperties(card, templates)).toHaveLength(10000)
+        })
+    })
+
+    describe('verify conditionSourceCandidates method', () => {
+        test('should offer only select and multiSelect properties', () => {
+            const status = source('status', ['x'])
+            const tags = source('tags', ['x'], 'multiSelect')
+            const notes = source('notes', [], 'text')
+            const target = dependent('target', 'status', ['x'])
+
+            expect(conditionSourceCandidates(target, [status, tags, notes, target]).map((o) => o.id)).toEqual(['status', 'tags'])
+        })
+
+        test('should not offer the property itself', () => {
+            const selfProp = source('self', ['x'])
+            expect(conditionSourceCandidates(selfProp, [selfProp])).toEqual([])
+        })
+
+        test('should not offer a property whose declared chain leads back', () => {
+            // b depends on a, c depends on b. Pointing a at either would close a
+            // loop, so only the unrelated property is offered.
+            const a = source('a', ['x'])
+            const b = dependentSource('b', ['x'], 'a', ['x'])
+            const c = dependentSource('c', ['x'], 'b', ['x'])
+            const unrelated = source('unrelated', ['x'])
+
+            expect(conditionSourceCandidates(a, [a, b, c, unrelated]).map((o) => o.id)).toEqual(['unrelated'])
+        })
+
+        test('should follow a declared edge the resolver treats as dead', () => {
+            // Every option b references is gone, so the resolver sees no edge and
+            // b fails open. Prevention still refuses it: re-adding the option would
+            // otherwise spring the cycle into existence.
+            const a = source('a', ['x'])
+            const b = dependentSource('b', ['x'], 'a', ['deleted-option'])
+
+            expect(visibleProperties(cardWith({}), [a, b]).map((o) => o.id)).toEqual(['a', 'b'])
+            expect(conditionSourceCandidates(a, [a, b])).toEqual([])
+        })
+
+        test('should treat a condition with no options yet as a declared edge', () => {
+            // The state the editor sits in between picking a source and ticking the
+            // first option. Ignoring it would let two properties be pointed at each
+            // other one switch at a time.
+            const a = source('a', ['x'])
+            const b = dependentSource('b', ['x'], 'a', [])
+
+            expect(conditionSourceCandidates(a, [a, b])).toEqual([])
+        })
+
+        test('should not hang on a pre-existing cycle elsewhere on the board', () => {
+            const target = source('target', ['x'])
+            const alpha = dependentSource('alpha', ['x'], 'beta', ['x'])
+            const beta = dependentSource('beta', ['x'], 'alpha', ['x'])
+
+            // Neither reaches target, so both are legal sources for it.
+            expect(conditionSourceCandidates(target, [target, alpha, beta]).map((o) => o.id)).toEqual(['alpha', 'beta'])
         })
     })
 

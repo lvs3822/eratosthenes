@@ -1,9 +1,9 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
-import React, {useEffect, useMemo, useState} from 'react'
+import React, {useCallback, useEffect, useMemo, useState} from 'react'
 import {FormattedMessage, useIntl} from 'react-intl'
 
-import {Board, IPropertyTemplate} from '../../blocks/board'
+import {Board, IPropertyTemplate, IPropertyVisibility} from '../../blocks/board'
 import {Card} from '../../blocks/card'
 import {BoardView} from '../../blocks/boardView'
 
@@ -24,6 +24,7 @@ import {useHasCurrentBoardPermissions} from '../../hooks/permissions'
 import propRegistry from '../../properties'
 import {PropertyType} from '../../properties/types'
 import {visibleProperties} from '../../propertyVisibility'
+import './cardDetailProperties.scss'
 
 type Props = {
     board: Board
@@ -41,10 +42,42 @@ const CardDetailProperties = (props: Props) => {
     const canEditBoardCards = useHasCurrentBoardPermissions([Permission.ManageBoardCards])
     const intl = useIntl()
 
+    // Properties whose PropertyMenu is currently open. Configuring a condition can
+    // make a property fail its own condition on the card in front of you, which
+    // would unmount the row and take the open menu with it. Pinning keeps the row
+    // alive until the menu closes; the property then disappears, which the badge
+    // has already explained.
+    const [pinnedPropertyIds, setPinnedPropertyIds] = useState<string[]>([])
+
     // Properties hidden by a visibility condition are not rendered for this card.
     // This is display only: the values stay in the database untouched and come
     // back as soon as the card matches the condition again.
-    const visibleCardProperties = useMemo(() => visibleProperties(card, board.cardProperties), [card, board.cardProperties])
+    const visibleCardProperties = useMemo(() => {
+        const visible = visibleProperties(card, board.cardProperties)
+        if (pinnedPropertyIds.length === 0) {
+            return visible
+        }
+
+        const shown = new Set(visible.map((o) => o.id))
+        return board.cardProperties.filter((o) => shown.has(o.id) || pinnedPropertyIds.includes(o.id))
+    }, [card, board.cardProperties, pinnedPropertyIds])
+
+    const setMenuOpen = useCallback((propertyId: string, isOpen: boolean) => {
+        setPinnedPropertyIds((pinned) => {
+            if (isOpen) {
+                return pinned.includes(propertyId) ? pinned : [...pinned, propertyId]
+            }
+            return pinned.filter((id) => id !== propertyId)
+        })
+    }, [])
+
+    const onVisibilityChanged = useCallback(async (propertyTemplate: IPropertyTemplate, visibleWhen?: IPropertyVisibility) => {
+        try {
+            await mutator.changePropertyVisibility(board.id, board.cardProperties, propertyTemplate, visibleWhen)
+        } catch (err: any) {
+            Utils.logError(`Error changing property visibility: ${propertyTemplate.name}: ${err?.toString()}`)
+        }
+    }, [board.id, board.cardProperties])
 
     useEffect(() => {
         const newProperty = board.cardProperties.find((property) => property.id === newTemplateId)
@@ -134,6 +167,44 @@ const CardDetailProperties = (props: Props) => {
         setShowConfirmationDialog(true)
     }
 
+    // "only if Status: Blocked", or "+2" when the condition names more than one
+    // option, with the full set in the tooltip. Nothing is rendered when the
+    // condition is absent, names no options, or points at a property that is no
+    // longer on the board, since in all three cases nothing is actually hidden.
+    function conditionBadge(propertyTemplate: IPropertyTemplate): JSX.Element | null {
+        const {visibleWhen} = propertyTemplate
+        if (!visibleWhen || visibleWhen.optionIds.length === 0) {
+            return null
+        }
+
+        const source = board.cardProperties.find((o) => o.id === visibleWhen.propertyId)
+        if (!source) {
+            return null
+        }
+
+        const values = source.options.filter((o) => visibleWhen.optionIds.includes(o.id)).map((o) => o.value)
+        if (values.length === 0) {
+            return null
+        }
+
+        const label = values.length === 1 ? intl.formatMessage({
+            id: 'CardDetailProperty.visibleWhen',
+            defaultMessage: 'only if {propertyName}: {optionValue}',
+        }, {propertyName: source.name, optionValue: values[0]}) : intl.formatMessage({
+            id: 'CardDetailProperty.visibleWhenMany',
+            defaultMessage: 'only if {propertyName}: {optionValue} +{count}',
+        }, {propertyName: source.name, optionValue: values[0], count: values.length - 1})
+
+        return (
+            <span
+                className='CardDetailProperties__condition'
+                title={`${source.name}: ${values.join(', ')}`}
+            >
+                {label}
+            </span>
+        )
+    }
+
     return (
         <div className='octo-propertylist CardDetailProperties'>
             {visibleCardProperties.map((propertyTemplate: IPropertyTemplate) => {
@@ -142,16 +213,32 @@ const CardDetailProperties = (props: Props) => {
                         key={propertyTemplate.id + '-' + propertyTemplate.type}
                         className='octo-propertyrow'
                     >
-                        {(props.readonly || !canEditBoardProperties) && <div className='octo-propertyname octo-propertyname--readonly'>{propertyTemplate.name}</div>}
+                        {(props.readonly || !canEditBoardProperties) &&
+                            <div className='octo-propertyname octo-propertyname--readonly'>
+                                {propertyTemplate.name}
+                                {conditionBadge(propertyTemplate)}
+                            </div>}
                         {!props.readonly && canEditBoardProperties &&
-                            <MenuWrapper isOpen={propertyTemplate.id === newTemplateId}>
-                                <div className='octo-propertyname'><Button>{propertyTemplate.name}</Button></div>
+
+                            // The badge sits inside the trigger, so clicking either it or
+                            // the name opens the single PropertyMenu below.
+                            <MenuWrapper
+                                isOpen={propertyTemplate.id === newTemplateId}
+                                onToggle={(open) => setMenuOpen(propertyTemplate.id, open)}
+                            >
+                                <div className='octo-propertyname'>
+                                    <Button>{propertyTemplate.name}</Button>
+                                    {conditionBadge(propertyTemplate)}
+                                </div>
                                 <PropertyMenu
                                     propertyId={propertyTemplate.id}
                                     propertyName={propertyTemplate.name}
                                     propertyType={propRegistry.get(propertyTemplate.type)}
+                                    cardProperties={board.cardProperties}
+                                    cards={cards}
                                     onTypeAndNameChanged={(newType: PropertyType, newName: string) => onPropertyChangeSetAndOpenConfirmationDialog(newType, newName, propertyTemplate)}
                                     onDelete={() => onPropertyDeleteSetAndOpenConfirmationDialog(propertyTemplate)}
+                                    onVisibilityChanged={(visibleWhen?: IPropertyVisibility) => onVisibilityChanged(propertyTemplate, visibleWhen)}
                                 />
                             </MenuWrapper>
                         }

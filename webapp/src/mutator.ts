@@ -7,7 +7,7 @@ import cloneDeep from 'lodash/cloneDeep'
 
 import {BlockIcons} from './blockIcons'
 import {Block, BlockPatch, createPatchesFromBlocks} from './blocks/block'
-import {Board, BoardMember, BoardsAndBlocks, IPropertyOption, IPropertyTemplate, PropertyTypeEnum, createBoard, createPatchesFromBoards, createPatchesFromBoardsAndBlocks, createCardPropertiesPatches} from './blocks/board'
+import {Board, BoardMember, BoardsAndBlocks, IPropertyOption, IPropertyTemplate, IPropertyVisibility, PropertyTypeEnum, createBoard, createPatchesFromBoards, createPatchesFromBoardsAndBlocks, createCardPropertiesPatches} from './blocks/board'
 import {BoardView, ISortOption, createBoardView, KanbanCalculationFields} from './blocks/boardView'
 import {Card, createCard} from './blocks/card'
 import {ContentBlock} from './blocks/contentBlock'
@@ -627,6 +627,20 @@ class Mutator {
         const newOption = newTemplate.options.find((o) => o.id === option.id)!
         newOption.color = color
         await this.updateBoardCardProperties(boardId, oldCardProperties, newCardProperties, 'rename option')
+    }
+
+    // Sets or clears a property's visibility condition. Passing no condition
+    // removes the key entirely rather than setting it to undefined, so a property
+    // without a condition stays byte-identical to one that never had one.
+    async changePropertyVisibility(boardId: string, oldCardProperties: IPropertyTemplate[], template: IPropertyTemplate, visibleWhen?: IPropertyVisibility) {
+        const newCardProperties: IPropertyTemplate[] = cloneDeep(oldCardProperties)
+        const newTemplate = newCardProperties.find((o: IPropertyTemplate) => o.id === template.id)!
+        if (visibleWhen) {
+            newTemplate.visibleWhen = {propertyId: visibleWhen.propertyId, optionIds: [...visibleWhen.optionIds]}
+        } else {
+            delete newTemplate.visibleWhen
+        }
+        await this.updateBoardCardProperties(boardId, oldCardProperties, newCardProperties, visibleWhen ? 'change property visibility' : 'show property always')
     }
 
     async changePropertyValue(boardId: string, card: Card, propertyId: string, value?: string | string[], description = 'change property') {
