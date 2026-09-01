@@ -39,6 +39,7 @@ const KanbanCard = (props: Props) => {
     const {card, board} = props
     const intl = useIntl()
     const [isDragging, isOver, cardRef] = useSortable('card', card, !props.readonly, props.onDrop)
+    
     // INVARIANT: card visibility only narrows the view's visiblePropertyIds, it
     // never widens them. A property the view hides as a column stays hidden even
     // when its condition is satisfied. A template the board does not know about is
