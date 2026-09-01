@@ -245,6 +245,73 @@ describe('components/cardDetail/CardDetailProperties', () => {
         expect(container).toMatchSnapshot()
     })
 
+    describe('visibility conditions', () => {
+        const conditionalBoard = TestBlockFactory.createBoard()
+        conditionalBoard.cardProperties = [
+            {
+                id: 'status_id',
+                name: 'Status',
+                type: 'select',
+                options: [
+                    {color: 'propColorDefault', id: 'status_todo', value: 'Todo'},
+                    {color: 'propColorDefault', id: 'status_blocked', value: 'Blocked'},
+                ],
+            },
+            {
+                id: 'reason_id',
+                name: 'Blocked reason',
+                type: 'text',
+                options: [],
+                visibleWhen: {propertyId: 'status_id', optionIds: ['status_blocked']},
+            },
+        ]
+
+        function renderConditional(cardToRender: any) {
+            return render(wrapIntl(
+                <ReduxProvider store={store}>
+                    <CardDetailProperties
+                        board={conditionalBoard}
+                        card={cardToRender}
+                        cards={[cardToRender]}
+                        activeView={view}
+                        views={views}
+                        readonly={false}
+                    />
+                </ReduxProvider>,
+            ))
+        }
+
+        it('should hide a property whose condition the card does not meet', () => {
+            const todoCard = TestBlockFactory.createCard(conditionalBoard)
+            todoCard.fields.properties.status_id = 'status_todo'
+
+            renderConditional(todoCard)
+
+            expect(screen.queryByRole('button', {name: 'Status'})).not.toBeNull()
+            expect(screen.queryByRole('button', {name: 'Blocked reason'})).toBeNull()
+        })
+
+        it('should show the property once the card meets the condition', () => {
+            const blockedCard = TestBlockFactory.createCard(conditionalBoard)
+            blockedCard.fields.properties.status_id = 'status_blocked'
+
+            renderConditional(blockedCard)
+
+            expect(screen.queryByRole('button', {name: 'Status'})).not.toBeNull()
+            expect(screen.queryByRole('button', {name: 'Blocked reason'})).not.toBeNull()
+        })
+
+        it('should show every property on a card template, even unmet ones', () => {
+            const template = TestBlockFactory.createCard(conditionalBoard)
+            template.fields.isTemplate = true
+            template.fields.properties.status_id = 'status_todo'
+
+            renderConditional(template)
+
+            expect(screen.queryByRole('button', {name: 'Blocked reason'})).not.toBeNull()
+        })
+    })
+
     function openDeleteConfirmationDialog(container: HTMLElement) {
         const propertyLabel = container.querySelector('.MenuWrapper')
         expect(propertyLabel).toBeDefined()

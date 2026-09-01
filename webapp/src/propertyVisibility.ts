@@ -205,8 +205,19 @@ function isPropertyVisible(template: IPropertyTemplate, card: Card, allTemplates
 
 /**
  * The card properties that should be shown on this card, in board order.
+ *
+ * Card templates are a deliberate exception and always get the full list. A
+ * template exists to carry default values, and it usually holds no value for a
+ * condition source, so resolving it normally would hide exactly the properties
+ * whose defaults the user opened the template to set. This is a display
+ * short-circuit rather than a data rule, which is why it lives here and not in
+ * isPropertyVisible: that stays a pure schema-plus-card primitive.
  */
 function visibleProperties(card: Card, allTemplates: readonly IPropertyTemplate[]): IPropertyTemplate[] {
+    if (card.fields.isTemplate) {
+        return [...allTemplates]
+    }
+
     const context = createContext(allTemplates)
     const memo = new Map<string, boolean>()
 

@@ -132,4 +132,74 @@ describe('components/calendar/toolbar', () => {
         )
         expect(container).toMatchSnapshot()
     })
+
+    describe('visibility conditions', () => {
+        const conditionalBoard = TestBlockFactory.createBoard()
+        conditionalBoard.cardProperties = [
+            {
+                id: 'status_id',
+                name: 'Status',
+                type: 'select',
+                options: [
+                    {color: 'propColorDefault', id: 'status_todo', value: 'Todo'},
+                    {color: 'propColorDefault', id: 'status_blocked', value: 'Blocked'},
+                ],
+            },
+            {
+                id: 'reason_id',
+                name: 'Blocked reason',
+                type: 'text',
+                options: [],
+                visibleWhen: {propertyId: 'status_id', optionIds: ['status_blocked']},
+            },
+        ]
+
+        const conditionalView = TestBlockFactory.createBoardView(conditionalBoard)
+        conditionalView.fields.viewType = 'calendar'
+        conditionalView.fields.groupById = undefined
+        conditionalView.fields.visiblePropertyIds = ['status_id', 'reason_id']
+
+        const conditionalStore = mockStateStore([], {
+            teams: {current: {id: 'team-id'}},
+            boards: {
+                current: conditionalBoard.id,
+                boards: {[conditionalBoard.id]: conditionalBoard},
+                myBoardMemberships: {[conditionalBoard.id]: {userId: 'user_id_1', schemeAdmin: true}},
+            },
+        })
+
+        function renderWithStatus(status: string) {
+            const conditionalCard = TestBlockFactory.createCard(conditionalBoard)
+            conditionalCard.createAt = fifth
+            conditionalCard.fields.properties.status_id = status
+
+            return render(
+                wrapIntl(
+                    <ReduxProvider store={conditionalStore}>
+                        <CalendarView
+                            board={conditionalBoard}
+                            activeView={conditionalView}
+                            cards={[conditionalCard]}
+                            readonly={false}
+                            showCard={mockShow}
+                            addCard={mockAdd}
+                            initialDate={new Date(fifth)}
+                        />
+                    </ReduxProvider>,
+                ),
+            )
+        }
+
+        test('should hide a card property whose condition is not met', () => {
+            const {container} = renderWithStatus('status_todo')
+            expect(container.querySelector('[data-tooltip="Status"]')).not.toBeNull()
+            expect(container.querySelector('[data-tooltip="Blocked reason"]')).toBeNull()
+        })
+
+        test('should show the card property once the condition is met', () => {
+            const {container} = renderWithStatus('status_blocked')
+            expect(container.querySelector('[data-tooltip="Status"]')).not.toBeNull()
+            expect(container.querySelector('[data-tooltip="Blocked reason"]')).not.toBeNull()
+        })
+    })
 })

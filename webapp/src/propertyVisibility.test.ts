@@ -169,6 +169,20 @@ describe('src/propertyVisibility', () => {
             expect(visibleProperties(cardWith({status: 'todo'}), templates).map((o) => o.id)).toEqual(['status'])
         })
 
+        test('should return every property for a card template, conditions and all', () => {
+            const status = source('status', ['todo', 'blocked'])
+            const reason = dependent('reason', 'status', ['blocked'])
+            const templates = [status, reason]
+
+            const card = cardWith({status: 'todo'})
+            expect(visibleProperties(card, templates).map((o) => o.id)).toEqual(['status'])
+
+            // A template carries the defaults, so hiding conditional properties on
+            // it would make those defaults impossible to set.
+            card.fields.isTemplate = true
+            expect(visibleProperties(card, templates).map((o) => o.id)).toEqual(['status', 'reason'])
+        })
+
         test('should resolve a long chain without recursing', () => {
             const templates: IPropertyTemplate[] = [source('link0', ['on'])]
             for (let i = 1; i < 10000; i++) {

@@ -13,6 +13,7 @@ import {Utils} from '../../utils'
 import MenuWrapper from '../../widgets/menuWrapper'
 import Tooltip from '../../widgets/tooltip'
 import PropertyValueElement from '../propertyValueElement'
+import {visibleProperties} from '../../propertyVisibility'
 import ConfirmationDialogBox, {ConfirmationDialogBoxProps} from '../confirmationDialogBox'
 import './kanbanCard.scss'
 import CardBadges from '../cardBadges'
@@ -38,7 +39,16 @@ const KanbanCard = (props: Props) => {
     const {card, board} = props
     const intl = useIntl()
     const [isDragging, isOver, cardRef] = useSortable('card', card, !props.readonly, props.onDrop)
-    const visiblePropertyTemplates = props.visiblePropertyTemplates || []
+    // INVARIANT: card visibility only narrows the view's visiblePropertyIds, it
+    // never widens them. A property the view hides as a column stays hidden even
+    // when its condition is satisfied. A template the board does not know about is
+    // left alone, matching the resolver's fail-open rule.
+    const visiblePropertyTemplates = useMemo(() => {
+        const templates = props.visiblePropertyTemplates || []
+        const visibleIds = new Set(visibleProperties(card, board.cardProperties).map((o) => o.id))
+        const hiddenIds = new Set(board.cardProperties.filter((o) => !visibleIds.has(o.id)).map((o) => o.id))
+        return templates.filter((template) => !hiddenIds.has(template.id))
+    }, [card, board.cardProperties, props.visiblePropertyTemplates])
     let className = props.isSelected ? 'KanbanCard selected' : 'KanbanCard'
     if (props.isManualSort && isOver) {
         className += ' dragover'

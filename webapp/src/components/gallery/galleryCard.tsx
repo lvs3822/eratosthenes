@@ -18,6 +18,7 @@ import {CardDetailProvider} from '../cardDetail/cardDetailContext'
 import ContentElement from '../content/contentElement'
 import ImageElement from '../content/imageElement'
 import PropertyValueElement from '../propertyValueElement'
+import {visibleProperties} from '../../propertyVisibility'
 import './galleryCard.scss'
 import CardBadges from '../cardBadges'
 import CardActionsMenu from '../cardActionsMenu/cardActionsMenu'
@@ -45,7 +46,14 @@ const GalleryCard = (props: Props) => {
     const {onClickMoveToBoard, moveCardsDialog} = useMoveCardsToBoard(card.boardId, [card.id])
     const [showConfirmationDialogBox, setShowConfirmationDialogBox] = useState<boolean>(false)
 
-    const visiblePropertyTemplates = props.visiblePropertyTemplates || []
+    // INVARIANT: card visibility only narrows the view's visiblePropertyIds, it
+    // never widens them. See kanbanCard.tsx for the same filter.
+    const visiblePropertyTemplates = useMemo(() => {
+        const templates = props.visiblePropertyTemplates || []
+        const visibleIds = new Set(visibleProperties(card, board.cardProperties).map((o) => o.id))
+        const hiddenIds = new Set(board.cardProperties.filter((o) => !visibleIds.has(o.id)).map((o) => o.id))
+        return templates.filter((template) => !hiddenIds.has(template.id))
+    }, [card, board.cardProperties, props.visiblePropertyTemplates])
 
     const handleDeleteCard = useCallback(() => {
         mutator.deleteBlock(card, 'delete card')

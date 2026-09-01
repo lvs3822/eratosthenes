@@ -20,6 +20,7 @@ import {DateProperty} from '../../properties/date/date'
 import propsRegistry from '../../properties'
 import Tooltip from '../../widgets/tooltip'
 import PropertyValueElement from '../propertyValueElement'
+import {visibleProperties} from '../../propertyVisibility'
 import {Constants, Permission} from '../../constants'
 import {useHasCurrentBoardPermissions} from '../../hooks/permissions'
 import CardBadges from '../cardBadges'
@@ -82,6 +83,25 @@ const CalendarFullView = (props: Props): JSX.Element|null => {
     const visiblePropertyTemplates = useMemo(() => (
         board.cardProperties.filter((template: IPropertyTemplate) => activeView.fields.visiblePropertyIds.includes(template.id))
     ), [board.cardProperties, activeView.fields.visiblePropertyIds])
+
+    // Resolved per card, because visibility depends on the card's own values.
+    // renderEventContent below is a plain callback that FullCalendar invokes once
+    // per event render, so unlike the kanban and gallery card components there is
+    // no per-card memo to lean on. Precomputing here keeps the resolver running
+    // once per card instead of once per event render.
+    //
+    // INVARIANT: card visibility only narrows the view's visiblePropertyIds, it
+    // never widens them. A template the board does not know about is left alone,
+    // matching the resolver's fail-open rule.
+    const visibleTemplatesByCardId = useMemo(() => {
+        const byCardId = new Map<string, IPropertyTemplate[]>()
+        cards.forEach((card) => {
+            const visibleIds = new Set(visibleProperties(card, board.cardProperties).map((o) => o.id))
+            const hiddenIds = new Set(board.cardProperties.filter((o) => !visibleIds.has(o.id)).map((o) => o.id))
+            byCardId.set(card.id, visiblePropertyTemplates.filter((template) => !hiddenIds.has(template.id)))
+        })
+        return byCardId
+    }, [cards, board.cardProperties, visiblePropertyTemplates])
 
     let {initialDate} = props
     if (!initialDate) {
@@ -154,6 +174,7 @@ const CalendarFullView = (props: Props): JSX.Element|null => {
     const renderEventContent = (eventProps: EventContentArg): JSX.Element|null => {
         const {event} = eventProps
         const card = cards.find((o) => o.id === event.id) || cards[0]
+        const cardPropertyTemplates = visibleTemplatesByCardId.get(card.id) || visiblePropertyTemplates
 
         return (
             <>
@@ -184,7 +205,7 @@ const CalendarFullView = (props: Props): JSX.Element|null => {
                             key='__title'
                         >{event.title || intl.formatMessage({id: 'CalendarCard.untitled', defaultMessage: 'Untitled'})}</div>
                     </div>
-                    {visiblePropertyTemplates.map((template) => (
+                    {cardPropertyTemplates.map((template) => (
                         <Tooltip
                             key={template.id}
                             title={template.name}

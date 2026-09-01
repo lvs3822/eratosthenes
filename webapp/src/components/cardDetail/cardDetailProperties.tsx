@@ -1,6 +1,6 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
-import React, {useEffect, useState} from 'react'
+import React, {useEffect, useMemo, useState} from 'react'
 import {FormattedMessage, useIntl} from 'react-intl'
 
 import {Board, IPropertyTemplate} from '../../blocks/board'
@@ -23,6 +23,7 @@ import {Permission} from '../../constants'
 import {useHasCurrentBoardPermissions} from '../../hooks/permissions'
 import propRegistry from '../../properties'
 import {PropertyType} from '../../properties/types'
+import {visibleProperties} from '../../propertyVisibility'
 
 type Props = {
     board: Board
@@ -39,6 +40,11 @@ const CardDetailProperties = (props: Props) => {
     const canEditBoardProperties = useHasCurrentBoardPermissions([Permission.ManageBoardProperties])
     const canEditBoardCards = useHasCurrentBoardPermissions([Permission.ManageBoardCards])
     const intl = useIntl()
+
+    // Properties hidden by a visibility condition are not rendered for this card.
+    // This is display only: the values stay in the database untouched and come
+    // back as soon as the card matches the condition again.
+    const visibleCardProperties = useMemo(() => visibleProperties(card, board.cardProperties), [card, board.cardProperties])
 
     useEffect(() => {
         const newProperty = board.cardProperties.find((property) => property.id === newTemplateId)
@@ -130,7 +136,7 @@ const CardDetailProperties = (props: Props) => {
 
     return (
         <div className='octo-propertylist CardDetailProperties'>
-            {board.cardProperties.map((propertyTemplate: IPropertyTemplate) => {
+            {visibleCardProperties.map((propertyTemplate: IPropertyTemplate) => {
                 return (
                     <div
                         key={propertyTemplate.id + '-' + propertyTemplate.type}

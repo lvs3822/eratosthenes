@@ -198,4 +198,59 @@ describe('src/components/kanban/kanbanCard', () => {
         userEvent.click(elementButtonCopyLink)
         expect(mockedUtils.copyTextToClipboard).toBeCalledTimes(1)
     })
+
+    describe('visibility conditions', () => {
+        const conditionalBoard = TestBlockFactory.createBoard()
+        conditionalBoard.cardProperties = [
+            {
+                id: 'status_id',
+                name: 'Status',
+                type: 'select',
+                options: [
+                    {color: 'propColorDefault', id: 'status_todo', value: 'Todo'},
+                    {color: 'propColorDefault', id: 'status_blocked', value: 'Blocked'},
+                ],
+            },
+            {
+                id: 'reason_id',
+                name: 'Blocked reason',
+                type: 'text',
+                options: [],
+                visibleWhen: {propertyId: 'status_id', optionIds: ['status_blocked']},
+            },
+        ]
+
+        function renderWithStatus(status: string) {
+            const conditionalCard = TestBlockFactory.createCard(conditionalBoard)
+            conditionalCard.fields.properties.status_id = status
+
+            return render(wrapDNDIntl(
+                <ReduxProvider store={store}>
+                    <KanbanCard
+                        card={conditionalCard}
+                        board={conditionalBoard}
+                        visiblePropertyTemplates={conditionalBoard.cardProperties}
+                        visibleBadges={false}
+                        isSelected={false}
+                        readonly={false}
+                        onDrop={jest.fn()}
+                        showCard={jest.fn()}
+                        isManualSort={false}
+                    />
+                </ReduxProvider>,
+            ), {wrapper: MemoryRouter})
+        }
+
+        test('should hide a card property whose condition is not met', () => {
+            const {container} = renderWithStatus('status_todo')
+            expect(container.querySelector('[data-tooltip="Status"]')).not.toBeNull()
+            expect(container.querySelector('[data-tooltip="Blocked reason"]')).toBeNull()
+        })
+
+        test('should show the card property once the condition is met', () => {
+            const {container} = renderWithStatus('status_blocked')
+            expect(container.querySelector('[data-tooltip="Status"]')).not.toBeNull()
+            expect(container.querySelector('[data-tooltip="Blocked reason"]')).not.toBeNull()
+        })
+    })
 })
