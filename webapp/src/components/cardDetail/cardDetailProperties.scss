@@ -1,8 +1,17 @@
 .CardDetailProperties {
-    .octo-propertyname {
-        align-items: center;
+    // The name cell is a hard 150px (cardDetail.scss:132 `flex: 0 0 150px`,
+    // and :137 `width: 150px`) and the Button inside it is already `width: 100%`,
+    // so there is no room beside the name for anything else. Sharing that row
+    // pushed the badge past the cell, and since the cell has no overflow rule it
+    // spilled straight over the property value. Stack instead.
+    //
+    // Scoped to .octo-propertyrow on purpose: .add-property carries the same
+    // octo-propertyname class but holds a MenuWrapper and the tour step, and must
+    // keep its own layout.
+    .octo-propertyrow .octo-propertyname {
+        align-items: flex-start;
         display: flex;
-        gap: 4px;
+        flex-direction: column;
     }
 
     .CardDetailProperties__condition {
@@ -11,11 +20,17 @@
         color: rgba(var(--center-channel-color-rgb), 0.64);
         font-size: 11px;
         line-height: 16px;
-        padding: 0 6px;
-        white-space: nowrap;
-    }
 
-    .CardDetailProperties__condition--readonly {
-        cursor: default;
+        // 8px lines the badge up with the Button's text, which carries
+        // `padding: 4px 8px` from cardDetail.scss.
+        margin: 2px 0 0 8px;
+        max-width: calc(100% - 8px);
+        overflow: hidden;
+        padding: 0 6px;
+
+        // The full condition is always in the title attribute, so truncating
+        // here loses nothing.
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 }
