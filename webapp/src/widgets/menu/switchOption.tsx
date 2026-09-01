@@ -48,6 +48,7 @@ function SwitchOption(props: SwitchOptionProps): JSX.Element {
         >
             {icon ? <div className='menu-option__icon'>{icon}</div> : <div className='noicon'/>}
             {subText ? (
+
                 // Only wrapped when there is a subtext to wrap, so an option
                 // without one renders exactly the DOM it always has.
                 <div className='menu-option__content'>
