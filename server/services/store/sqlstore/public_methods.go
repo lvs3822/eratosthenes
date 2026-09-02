@@ -240,6 +240,11 @@ func (s *SQLStore) DeleteNotificationHint(blockID string) error {
 
 }
 
+func (s *SQLStore) DeleteRecurringCard(cardID string) error {
+	return s.deleteRecurringCard(s.db, cardID)
+
+}
+
 func (s *SQLStore) DeleteSession(sessionID string) error {
 	return s.deleteSession(s.db, sessionID)
 
@@ -433,6 +438,11 @@ func (s *SQLStore) GetChannel(teamID string, channelID string) (*mmModel.Channel
 
 }
 
+func (s *SQLStore) GetDueRecurringCards(now int64, limit int) ([]*model.RecurringCard, error) {
+	return s.getDueRecurringCards(s.db, now, limit)
+
+}
+
 func (s *SQLStore) GetFileInfo(id string) (*mmModel.FileInfo, error) {
 	return s.getFileInfo(s.db, id)
 
@@ -465,6 +475,11 @@ func (s *SQLStore) GetNextNotificationHint(remove bool) (*model.NotificationHint
 
 func (s *SQLStore) GetNotificationHint(blockID string) (*model.NotificationHint, error) {
 	return s.getNotificationHint(s.db, blockID)
+
+}
+
+func (s *SQLStore) GetRecurringCard(cardID string) (*model.RecurringCard, error) {
+	return s.getRecurringCard(s.db, cardID)
 
 }
 
@@ -942,6 +957,11 @@ func (s *SQLStore) UpdateCategory(category model.Category) error {
 
 }
 
+func (s *SQLStore) UpdateRecurringCardRun(cardID string, nextRunAt *int64, lastRunAt *int64) error {
+	return s.updateRecurringCardRun(s.db, cardID, nextRunAt, lastRunAt)
+
+}
+
 func (s *SQLStore) UpdateSession(session *model.Session) error {
 	return s.updateSession(s.db, session)
 
@@ -969,6 +989,11 @@ func (s *SQLStore) UpdateUserPasswordByID(userID string, password string) error 
 
 func (s *SQLStore) UpsertNotificationHint(hint *model.NotificationHint, notificationFreq time.Duration) (*model.NotificationHint, error) {
 	return s.upsertNotificationHint(s.db, hint, notificationFreq)
+
+}
+
+func (s *SQLStore) UpsertRecurringCard(rc *model.RecurringCard) error {
+	return s.upsertRecurringCard(s.db, rc)
 
 }
 

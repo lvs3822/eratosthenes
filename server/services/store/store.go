@@ -161,6 +161,15 @@ type Store interface {
 	GetCardLimitTimestamp() (int64, error)
 	UpdateCardLimitTimestamp(cardLimit int) (int64, error)
 
+	// Recurring cards. The table is a derived index over the cards whose
+	// fields.recurrence marks them as recurring; none of these needs a
+	// transaction because each is a single statement.
+	UpsertRecurringCard(rc *model.RecurringCard) error
+	UpdateRecurringCardRun(cardID string, nextRunAt *int64, lastRunAt *int64) error
+	DeleteRecurringCard(cardID string) error
+	GetRecurringCard(cardID string) (*model.RecurringCard, error)
+	GetDueRecurringCards(now int64, limit int) ([]*model.RecurringCard, error)
+
 	DBType() string
 	DBVersion() string
 

@@ -123,6 +123,9 @@ var (
 	// ErrNoNextOccurrence is returned when the bounded search for the next
 	// occurrence found nothing. A valid configuration cannot produce this.
 	ErrNoNextOccurrence = errors.New("no next occurrence found within the search bound")
+
+	// ErrNilRecurringCard is returned when a nil row reaches the store.
+	ErrNilRecurringCard = errors.New("recurring card is nil")
 )
 
 // RecurrenceRule describes the period of a schedule-mode recurrence.
@@ -922,5 +925,77 @@ func SetCardRecurrenceFields(fields map[string]interface{}, cardType CardType, c
 
 	fields[CardFieldRecurrence] = normalised
 
+	return nil
+}
+
+// RecurringCard is one row of the recurring_cards table, which indexes the cards
+// that produce further occurrences of themselves so that the scheduler can ask
+// which are due without scanning every block on every board.
+//
+// The table is a derived index, not a source of truth: the authoritative
+// configuration is the card block's fields.recurrence, and every row here can be
+// rebuilt from it.
+// swagger:model
+type RecurringCard struct {
+	// The id of the card this row indexes
+	// required: true
+	CardID string `json:"cardId"`
+
+	// The id of the board the card belongs to
+	// required: true
+	BoardID string `json:"boardId"`
+
+	// Whether the scheduler should consider this card. This is the conjunction of
+	// cardType being "recurring" and recurrence.enabled, as computed by
+	// IsRecurrenceActive, and not a mirror of recurrence.enabled on its own.
+	// required: true
+	Active bool `json:"active"`
+
+	// Denormalised from Config so that the done-column trigger can short-circuit
+	// without deserialising it
+	// required: true
+	Mode RecurrenceMode `json:"mode"`
+
+	// The serialised recurrence configuration
+	// required: true
+	Config *RecurrenceConfig `json:"config"`
+
+	// When the next occurrence is due, in milliseconds since the epoch. Nil means
+	// not scheduled: an "afterDone" card that has not been completed yet.
+	// required: false
+	NextRunAt *int64 `json:"nextRunAt"`
+
+	// When an occurrence was last produced, in milliseconds since the epoch. Nil
+	// means it has never fired.
+	// required: false
+	LastRunAt *int64 `json:"lastRunAt"`
+
+	// The creation time in milliseconds since the epoch
+	// required: false
+	CreateAt int64 `json:"createAt"`
+
+	// The last modified time in milliseconds since the epoch
+	// required: false
+	UpdateAt int64 `json:"updateAt"`
+}
+
+// CheckValid returns an error if the row is missing the fields the store needs to
+// write it.
+//
+// This is a structural check only. Whether the configuration itself is coherent,
+// and whether it may be enabled, is CheckCardRecurrenceWritable's job at the
+// boundary that accepts user input. Enforcing that here would stop the scheduler
+// from maintaining a row whose configuration has gone stale, which is exactly
+// when the row is most needed.
+func (rc *RecurringCard) CheckValid() error {
+	if rc == nil {
+		return ErrNilRecurringCard
+	}
+	if rc.CardID == "" {
+		return ErrInvalidRecurrence{Field: "cardId", Reason: "is required"}
+	}
+	if rc.BoardID == "" {
+		return ErrInvalidRecurrence{Field: "boardId", Reason: "is required"}
+	}
 	return nil
 }

@@ -308,6 +308,20 @@ func (mr *MockStoreMockRecorder) DeleteNotificationHint(arg0 interface{}) *gomoc
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteNotificationHint", reflect.TypeOf((*MockStore)(nil).DeleteNotificationHint), arg0)
 }
 
+// DeleteRecurringCard mocks base method.
+func (m *MockStore) DeleteRecurringCard(arg0 string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteRecurringCard", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteRecurringCard indicates an expected call of DeleteRecurringCard.
+func (mr *MockStoreMockRecorder) DeleteRecurringCard(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteRecurringCard", reflect.TypeOf((*MockStore)(nil).DeleteRecurringCard), arg0)
+}
+
 // DeleteSession mocks base method.
 func (m *MockStore) DeleteSession(arg0 string) error {
 	m.ctrl.T.Helper()
@@ -778,6 +792,21 @@ func (mr *MockStoreMockRecorder) GetChannel(arg0, arg1 interface{}) *gomock.Call
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetChannel", reflect.TypeOf((*MockStore)(nil).GetChannel), arg0, arg1)
 }
 
+// GetDueRecurringCards mocks base method.
+func (m *MockStore) GetDueRecurringCards(arg0 int64, arg1 int) ([]*model.RecurringCard, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetDueRecurringCards", arg0, arg1)
+	ret0, _ := ret[0].([]*model.RecurringCard)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetDueRecurringCards indicates an expected call of GetDueRecurringCards.
+func (mr *MockStoreMockRecorder) GetDueRecurringCards(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDueRecurringCards", reflect.TypeOf((*MockStore)(nil).GetDueRecurringCards), arg0, arg1)
+}
+
 // GetFileInfo mocks base method.
 func (m *MockStore) GetFileInfo(arg0 string) (*model0.FileInfo, error) {
 	m.ctrl.T.Helper()
@@ -880,6 +909,21 @@ func (m *MockStore) GetNotificationHint(arg0 string) (*model.NotificationHint, e
 func (mr *MockStoreMockRecorder) GetNotificationHint(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNotificationHint", reflect.TypeOf((*MockStore)(nil).GetNotificationHint), arg0)
+}
+
+// GetRecurringCard mocks base method.
+func (m *MockStore) GetRecurringCard(arg0 string) (*model.RecurringCard, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetRecurringCard", arg0)
+	ret0, _ := ret[0].(*model.RecurringCard)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetRecurringCard indicates an expected call of GetRecurringCard.
+func (mr *MockStoreMockRecorder) GetRecurringCard(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRecurringCard", reflect.TypeOf((*MockStore)(nil).GetRecurringCard), arg0)
 }
 
 // GetRegisteredUserCount mocks base method.
@@ -1678,6 +1722,20 @@ func (mr *MockStoreMockRecorder) UpdateCategory(arg0 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateCategory", reflect.TypeOf((*MockStore)(nil).UpdateCategory), arg0)
 }
 
+// UpdateRecurringCardRun mocks base method.
+func (m *MockStore) UpdateRecurringCardRun(arg0 string, arg1, arg2 *int64) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateRecurringCardRun", arg0, arg1, arg2)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateRecurringCardRun indicates an expected call of UpdateRecurringCardRun.
+func (mr *MockStoreMockRecorder) UpdateRecurringCardRun(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateRecurringCardRun", reflect.TypeOf((*MockStore)(nil).UpdateRecurringCardRun), arg0, arg1, arg2)
+}
+
 // UpdateSession mocks base method.
 func (m *MockStore) UpdateSession(arg0 *model.Session) error {
 	m.ctrl.T.Helper()
@@ -1762,6 +1820,20 @@ func (m *MockStore) UpsertNotificationHint(arg0 *model.NotificationHint, arg1 ti
 func (mr *MockStoreMockRecorder) UpsertNotificationHint(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpsertNotificationHint", reflect.TypeOf((*MockStore)(nil).UpsertNotificationHint), arg0, arg1)
+}
+
+// UpsertRecurringCard mocks base method.
+func (m *MockStore) UpsertRecurringCard(arg0 *model.RecurringCard) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpsertRecurringCard", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpsertRecurringCard indicates an expected call of UpsertRecurringCard.
+func (mr *MockStoreMockRecorder) UpsertRecurringCard(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpsertRecurringCard", reflect.TypeOf((*MockStore)(nil).UpsertRecurringCard), arg0)
 }
 
 // UpsertSharing mocks base method.
