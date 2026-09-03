@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"runtime"
+	"runtime/debug"
 	"sync"
 	"syscall"
 	"time"
@@ -41,6 +42,9 @@ const (
 	cleanupSessionTaskFrequency = 10 * time.Minute
 	updateMetricsTaskFrequency  = 15 * time.Minute
 
+	// Used when RecurringCardsFreqSeconds is unset or not positive.
+	defaultRecurringCardsTaskFrequency = 1 * time.Minute
+
 	minSessionExpiryTime = int64(60 * 60 * 24 * 31) // 31 days
 
 	MattermostAuthMod = "mattermost"
@@ -58,6 +62,7 @@ type Server struct {
 	metricsServer          *metrics.Service
 	metricsService         *metrics.Metrics
 	metricsUpdaterTask     *scheduler.ScheduledTask
+	recurringCardsTask     *scheduler.ScheduledTask
 	auditService           *audit.Audit
 	notificationService    *notify.Service
 	servicesStartStopMutex sync.Mutex
@@ -294,6 +299,31 @@ func (s *Server) Start() error {
 	// metricsUpdater()   Calling this immediately causes integration unit tests to fail.
 	s.metricsUpdaterTask = scheduler.CreateRecurringTask("updateMetrics", metricsUpdater, updateMetricsTaskFrequency)
 
+	recurringCardsFrequency := defaultRecurringCardsTaskFrequency
+	if s.config.RecurringCardsFreqSeconds > 0 {
+		recurringCardsFrequency = time.Duration(s.config.RecurringCardsFreqSeconds) * time.Second
+	}
+
+	// Not called immediately for the same reason updateMetrics is not: a store
+	// call at start-up upsets the integration tests. The first pass happens one
+	// interval in, so catching up after an outage is late by that much.
+	s.recurringCardsTask = scheduler.CreateRecurringTask("recurringCards", func() {
+		// The scheduler invokes this bare, and an unrecovered panic in any
+		// goroutine takes down the whole server rather than just this task.
+		defer func() {
+			if r := recover(); r != nil {
+				s.logger.Error("Recovered from a panic while processing the recurring cards",
+					mlog.String("panic", fmt.Sprintf("%v", r)),
+					mlog.String("stack", string(debug.Stack())),
+				)
+			}
+		}()
+
+		if err := s.app.ProcessDueRecurringCards(); err != nil {
+			s.logger.Error("Unable to process the due recurring cards", mlog.Err(err))
+		}
+	}, recurringCardsFrequency)
+
 	if s.config.Telemetry {
 		firstRun := utils.GetMillis()
 		s.telemetry.RunTelemetryJob(firstRun)
@@ -333,6 +363,10 @@ func (s *Server) Shutdown() error {
 
 	if s.metricsUpdaterTask != nil {
 		s.metricsUpdaterTask.Cancel()
+	}
+
+	if s.recurringCardsTask != nil {
+		s.recurringCardsTask.Cancel()
 	}
 
 	if err := s.telemetry.Shutdown(); err != nil {

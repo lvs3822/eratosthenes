@@ -69,6 +69,11 @@ type Configuration struct {
 
 	NotifyFreqCardSeconds  int `json:"notify_freq_card_seconds" mapstructure:"notify_freq_card_seconds"`
 	NotifyFreqBoardSeconds int `json:"notify_freq_board_seconds" mapstructure:"notify_freq_board_seconds"`
+
+	// How often to look for recurring cards that have come due. Zero or less
+	// falls back to the built-in default rather than being taken literally,
+	// because a non-positive ticker interval panics.
+	RecurringCardsFreqSeconds int `json:"recurring_cards_freq_seconds" mapstructure:"recurring_cards_freq_seconds"`
 }
 
 // ReadConfigFile read the configuration from the filesystem.
@@ -103,6 +108,7 @@ func ReadConfigFile(configFilePath string) (*Configuration, error) {
 	viper.SetDefault("AuthMode", "native")
 	viper.SetDefault("NotifyFreqCardSeconds", 120)    // 2 minutes after last card edit
 	viper.SetDefault("NotifyFreqBoardSeconds", 86400) // 1 day after last card edit
+	viper.SetDefault("RecurringCardsFreqSeconds", 60) // check for due recurring cards every minute
 	viper.SetDefault("EnableDataRetention", false)
 	viper.SetDefault("FeatureFlags", map[string]string{})
 	viper.SetDefault("DataRetentionDays", 365) // 1 year is default
