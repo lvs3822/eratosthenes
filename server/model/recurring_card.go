@@ -57,6 +57,13 @@ const (
 const (
 	CardFieldCardType   = "cardType"
 	CardFieldRecurrence = "recurrence"
+
+	// CardFieldRecurrenceSourceID is set on an occurrence and holds the id of the
+	// card whose rule produced it. The occurrence carries no rule of its own, so
+	// that it cannot recur, but the reference lets the done-column trigger find the
+	// rule that governs it. Without it an "afterDone" recurrence would stop after a
+	// single occurrence, because the source card never leaves the done column.
+	CardFieldRecurrenceSourceID = "recurrenceSourceId"
 )
 
 // Field identifiers reported on an ErrInvalidRecurrence. They are the JSON paths

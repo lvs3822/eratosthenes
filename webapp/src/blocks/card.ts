@@ -58,6 +58,12 @@ type CardFields = {
     // Absent means 'normal'.
     cardType?: CardType
     recurrence?: RecurrenceConfig
+
+    // Set on a card created by a recurring rule, holding the id of the card that
+    // carries the rule. The occurrence has no rule of its own so that it cannot
+    // recur, but the server needs the reference to find the rule when this card
+    // reaches the done column.
+    recurrenceSourceId?: string
 }
 
 type Card = Block & {
@@ -116,6 +122,7 @@ function createCard(block?: Block): Card {
             // recurring keeps exactly the fields it had before this feature.
             ...(block?.fields.cardType ? {cardType: block.fields.cardType} : {}),
             ...(block?.fields.recurrence ? {recurrence: copyRecurrence(block.fields.recurrence)} : {}),
+            ...(block?.fields.recurrenceSourceId ? {recurrenceSourceId: block.fields.recurrenceSourceId} : {}),
         },
     }
 }

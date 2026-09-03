@@ -24,6 +24,7 @@ import (
 	"github.com/mattermost/focalboard/server/services/metrics"
 	"github.com/mattermost/focalboard/server/services/notify"
 	"github.com/mattermost/focalboard/server/services/notify/notifylogger"
+	"github.com/mattermost/focalboard/server/services/notify/notifyrecurring"
 	"github.com/mattermost/focalboard/server/services/scheduler"
 	"github.com/mattermost/focalboard/server/services/store"
 	"github.com/mattermost/focalboard/server/services/store/sqlstore"
@@ -129,7 +130,7 @@ func New(params Params) (*Server, error) {
 	}
 
 	// Init notification services
-	notificationService, errNotify := initNotificationService(params.NotifyBackends, params.Logger)
+	notificationService, errNotify := initNotificationService(params.NotifyBackends, params.DBStore, params.Logger)
 	if errNotify != nil {
 		return nil, fmt.Errorf("cannot initialize notification service(s): %w", errNotify)
 	}
@@ -546,10 +547,14 @@ func initTelemetry(opts telemetryOptions) *telemetry.Service {
 	return telemetryService
 }
 
-func initNotificationService(backends []notify.Backend, logger mlog.LoggerIFace) (*notify.Service, error) {
+func initNotificationService(backends []notify.Backend, store store.Store, logger mlog.LoggerIFace) (*notify.Service, error) {
 	loggerBackend := notifylogger.New(logger, mlog.LvlDebug)
 
-	backends = append(backends, loggerBackend)
+	// Constructed here rather than appended to params.NotifyBackends so that every
+	// entry point gets it: nothing populates that field on the standalone path.
+	recurringCardsBackend := notifyrecurring.New(store, logger)
+
+	backends = append(backends, loggerBackend, recurringCardsBackend)
 
 	service, err := notify.New(logger, backends...)
 	return service, err

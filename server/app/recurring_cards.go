@@ -249,6 +249,12 @@ func (a *App) createRecurringOccurrence(card *model.Block, cfg *model.Recurrence
 	patch := &model.BlockPatch{
 		UpdatedFields: map[string]interface{}{
 			"properties": targetProperties(card, cfg),
+			// The occurrence carries no rule, so that it cannot recur on its own,
+			// but it does carry a reference back to the card that does. The
+			// done-column trigger needs it: in "afterDone" mode the source card
+			// never leaves the done column itself, so without this the chain would
+			// stop after a single occurrence.
+			model.CardFieldRecurrenceSourceID: card.ID,
 		},
 		DeletedFields: []string{model.CardFieldCardType, model.CardFieldRecurrence},
 	}
