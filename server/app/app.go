@@ -70,6 +70,12 @@ type App struct {
 
 	cardLimitMux sync.RWMutex
 	cardLimit    int
+
+	// recurrenceLogState remembers the last reason each recurring card failed, so
+	// that a scheduler ticking every minute reports a persistent problem once
+	// rather than once a minute. It resets on restart, which is intentional.
+	recurrenceLogMux   sync.Mutex
+	recurrenceLogState map[string]string
 }
 
 func (a *App) SetConfig(config *config.Configuration) {
@@ -94,6 +100,7 @@ func New(config *config.Configuration, wsAdapter ws.Adapter, services Services) 
 		permissions:         services.Permissions,
 		blockChangeNotifier: utils.NewCallbackQueue("blockChangeNotifier", blockChangeNotifierQueueSize, blockChangeNotifierPoolSize, services.Logger),
 		servicesAPI:         services.ServicesAPI,
+		recurrenceLogState:  make(map[string]string),
 	}
 	app.initialize(services.SkipTemplateInit)
 	return app
