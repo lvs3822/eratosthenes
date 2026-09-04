@@ -219,8 +219,8 @@ type RecurrenceConfig struct {
 // is the JSON path of the offending field and Reason is a sentence fit to show to
 // whoever is filling the form in.
 type ErrInvalidRecurrence struct {
-	Field  string
-	Reason string
+	Field  string `json:"field"`
+	Reason string `json:"reason"`
 }
 
 func (e ErrInvalidRecurrence) Error() string {
@@ -984,6 +984,27 @@ type RecurringCard struct {
 	// The last modified time in milliseconds since the epoch
 	// required: false
 	UpdateAt int64 `json:"updateAt"`
+}
+
+// RecurrencePreview is the result of checking a configuration without storing it.
+// It carries the whole problem list rather than the first failure, so a settings
+// form can show everything that is wrong at once, and the computed next occurrence
+// so the same call drives the preview line.
+// swagger:model
+type RecurrencePreview struct {
+	// Whether the configuration may be saved in an enabled state
+	// required: true
+	Valid bool `json:"valid"`
+
+	// When the recurrence would next fire, in milliseconds since the epoch. Null in
+	// "afterDone" mode, which is not scheduled until the card is completed, and null
+	// when the configuration is not valid enough to compute one.
+	// required: false
+	NextRunAt *int64 `json:"nextRunAt"`
+
+	// Every problem found, in a stable order
+	// required: false
+	Problems []ErrInvalidRecurrence `json:"problems"`
 }
 
 // CheckValid returns an error if the row is missing the fields the store needs to

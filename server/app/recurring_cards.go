@@ -6,6 +6,8 @@ package app
 import (
 	"errors"
 	"fmt"
+	"reflect"
+	"time"
 
 	"github.com/mattermost/focalboard/server/model"
 	"github.com/mattermost/focalboard/server/utils"
@@ -111,6 +113,15 @@ func (a *App) processDueRecurringCard(row *model.RecurringCard, now int64) error
 		return a.deactivateRecurringCard(row, cfg)
 	}
 
+	// The row's copy of the configuration can fall behind the card's if only one of
+	// the two writes in SetCardRecurrence landed, which is possible on SQLite where
+	// the transaction is skipped. The card is authoritative, so bring the row up to
+	// date and let the next tick act on the corrected row rather than materialising
+	// from a stale schedule.
+	if !reflect.DeepEqual(row.Config, cfg) {
+		return a.refreshRecurringCard(row, cfg)
+	}
+
 	return a.materialiseRecurringCard(row, card, cfg, now)
 }
 
@@ -128,6 +139,20 @@ func (a *App) deactivateRecurringCard(row *model.RecurringCard, cfg *model.Recur
 	}
 
 	return a.store.UpsertRecurringCard(&reconciled)
+}
+
+// refreshRecurringCard rewrites a row whose stored configuration has fallen behind
+// the card's. It keeps the scheduling columns, since only the configuration drifted.
+func (a *App) refreshRecurringCard(row *model.RecurringCard, cfg *model.RecurrenceConfig) error {
+	refreshed := *row
+	refreshed.Config = cfg
+	refreshed.Mode = cfg.Mode
+	refreshed.Active = true
+
+	a.logger.Warn("the stored configuration of a recurring card had fallen behind the card, refreshing it",
+		mlog.String("cardID", row.CardID))
+
+	return a.store.UpsertRecurringCard(&refreshed)
 }
 
 // materialiseRecurringCard advances the schedule and then produces the occurrence.
@@ -366,4 +391,226 @@ func (a *App) clearRecurrenceProblem(cardID string) {
 	a.recurrenceLogMux.Lock()
 	delete(a.recurrenceLogState, cardID)
 	a.recurrenceLogMux.Unlock()
+}
+
+// SetCardRecurrence creates or replaces the recurrence configuration of a card,
+// writing both the card's fields.recurrence and its row in one store call.
+//
+// ATOMICITY IS DIALECT DEPENDENT, and the call below cannot change that. The store
+// method is annotated @withTransaction, so on MySQL and Postgres the two writes
+// commit together or not at all. On SQLite the generated wrapper skips the
+// transaction entirely (see public_methods.go), so the two writes are independent
+// and safety comes from their ORDER instead: the row is written first, because a
+// row whose card is not recurring is cleaned up by the scheduler on its next tick,
+// whereas a card claiming to recur with no row would be invisible to it.
+func (a *App) SetCardRecurrence(cardID string, cfg *model.RecurrenceConfig, userID string) (*model.RecurringCard, error) {
+	card, err := a.recurrenceCard(cardID)
+	if err != nil {
+		return nil, err
+	}
+
+	row, _, err := a.prepareRecurrence(card, cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	fields := map[string]interface{}{}
+	if fieldsErr := model.SetCardRecurrenceFields(fields, model.CardTypeRecurring, row.Config); fieldsErr != nil {
+		return nil, fieldsErr
+	}
+
+	patch := &model.BlockPatch{UpdatedFields: fields}
+
+	if err := a.store.SetCardRecurrence(cardID, patch, row, userID); err != nil {
+		return nil, err
+	}
+
+	a.broadcastCardChange(card)
+
+	return row, nil
+}
+
+// DeleteCardRecurrence stops a card recurring and removes its row.
+//
+// The configuration itself is kept on the card. Turning the switch off is exactly
+// the action that must not discard what was set up, so that turning it back on
+// restores the settings rather than presenting an empty form. A card of type
+// "normal" is invisible to the scheduler regardless, and its row is gone.
+func (a *App) DeleteCardRecurrence(cardID string, userID string) error {
+	card, err := a.recurrenceCard(cardID)
+	if err != nil {
+		return err
+	}
+
+	patch := &model.BlockPatch{DeletedFields: []string{model.CardFieldCardType}}
+
+	_, existing, fieldsErr := model.CardRecurrenceFromFields(card.Fields)
+	if fieldsErr == nil && existing != nil {
+		// Enabled is cleared even though the rest is kept: a normal card carrying an
+		// enabled recurrence is a combination the validator rejects.
+		disabled := *existing
+		disabled.Enabled = false
+
+		fields := map[string]interface{}{}
+		if err := model.SetCardRecurrenceFields(fields, model.CardTypeNormal, &disabled); err != nil {
+			return err
+		}
+		patch.UpdatedFields = fields
+	}
+
+	// A nil row means "remove it"; see SetCardRecurrence for why this is one call.
+	if err := a.store.SetCardRecurrence(cardID, patch, nil, userID); err != nil {
+		return err
+	}
+
+	a.broadcastCardChange(card)
+
+	return nil
+}
+
+// PreviewCardRecurrence reports what saving a configuration would do, without
+// saving it. It runs the same preparation as SetCardRecurrence so that what the
+// preview shows and what a save enforces cannot drift apart.
+func (a *App) PreviewCardRecurrence(cardID string, cfg *model.RecurrenceConfig) (*model.RecurrencePreview, error) {
+	card, err := a.recurrenceCard(cardID)
+	if err != nil {
+		return nil, err
+	}
+
+	// The validation error is the answer here rather than a failure: an invalid
+	// configuration is precisely what the caller is asking about.
+	_, preview, _ := a.prepareRecurrence(card, cfg)
+
+	return preview, nil
+}
+
+// prepareRecurrence turns a submitted configuration into the row that would be
+// stored and the report that describes it. It is the single place both the write
+// and the preview go through.
+//
+// The returned error is the write gate: nil means the configuration may be saved.
+// The preview is returned whether or not the gate passes.
+func (a *App) prepareRecurrence(card *model.Block, cfg *model.RecurrenceConfig) (*model.RecurringCard, *model.RecurrencePreview, error) {
+	if cfg == nil {
+		return nil, nil, model.ErrNilRecurrence
+	}
+
+	prepared := *cfg
+	prepared.StartAt = a.recurrenceStartAt(card, cfg)
+
+	problems := model.CardRecurrenceProblems(model.CardTypeRecurring, &prepared)
+
+	preview := &model.RecurrencePreview{
+		Valid:    len(problems) == 0,
+		Problems: problems,
+	}
+
+	if preview.Valid {
+		nextRunAt, err := nextRunForNewConfig(&prepared)
+		if err != nil {
+			return nil, preview, err
+		}
+		preview.NextRunAt = nextRunAt
+	}
+
+	if err := model.CheckCardRecurrenceWritable(model.CardTypeRecurring, &prepared); err != nil {
+		return nil, preview, err
+	}
+
+	row := &model.RecurringCard{
+		CardID:    card.ID,
+		BoardID:   card.BoardID,
+		Active:    model.IsRecurrenceActive(model.CardTypeRecurring, &prepared),
+		Mode:      prepared.Mode,
+		Config:    &prepared,
+		NextRunAt: preview.NextRunAt,
+		LastRunAt: a.recurrenceLastRunAt(card.ID),
+	}
+
+	return row, preview, nil
+}
+
+// recurrenceStartAt decides the phase anchor of a configuration being saved.
+//
+// The anchor belongs to the server, not to whatever the client submitted. It is set
+// once, when a card is first made recurring, and carried forward through every
+// later edit and through a pause, so that changing an interval or adding a weekday
+// does not shift the cycle. A settings form that round-trips the whole object would
+// otherwise reschedule the recurrence on every save, with nothing looking wrong.
+func (a *App) recurrenceStartAt(card *model.Block, cfg *model.RecurrenceConfig) int64 {
+	if _, existing, err := model.CardRecurrenceFromFields(card.Fields); err == nil &&
+		existing != nil && existing.StartAt > 0 {
+		return existing.StartAt
+	}
+
+	// Anchoring to now rather than to the card's creation time: a card may have
+	// existed for months before being made recurring, and "every other week starting
+	// now" is what someone enabling it means.
+	return utils.GetMillis()
+}
+
+// recurrenceLastRunAt carries the record of when an occurrence was last produced
+// across a configuration change. Editing a rule does not produce an occurrence, so
+// the column must not be reset by doing it.
+func (a *App) recurrenceLastRunAt(cardID string) *int64 {
+	row, err := a.store.GetRecurringCard(cardID)
+	if err != nil {
+		return nil
+	}
+
+	return row.LastRunAt
+}
+
+// nextRunForNewConfig computes the first occurrence of a configuration being saved.
+func nextRunForNewConfig(cfg *model.RecurrenceConfig) (*int64, error) {
+	// An "afterDone" recurrence is not scheduled until the card reaches the column
+	// that counts as completion, so it starts with no next run at all. The trigger
+	// that watches the done column sets it.
+	if cfg.Mode == model.RecurrenceModeAfterDone {
+		return nil, nil
+	}
+
+	nextRunAt, err := model.NextRunAt(cfg, time.Now())
+	if err != nil {
+		return nil, err
+	}
+
+	return &nextRunAt, nil
+}
+
+func (a *App) recurrenceCard(cardID string) (*model.Block, error) {
+	card, err := a.store.GetBlock(cardID)
+	if err != nil {
+		return nil, err
+	}
+
+	if card.Type != model.TypeCard {
+		return nil, model.ErrNotCardBlock
+	}
+
+	return card, nil
+}
+
+// broadcastCardChange tells open clients that a card changed. Setting a recurrence
+// bypasses PatchBlockAndNotify, which would otherwise do this, because the card and
+// its row have to be written together.
+func (a *App) broadcastCardChange(card *model.Block) {
+	board, err := a.store.GetBoard(card.BoardID)
+	if err != nil {
+		a.logger.Error("cannot load the board to broadcast a recurrence change",
+			mlog.String("cardID", card.ID), mlog.Err(err))
+		return
+	}
+
+	updated, err := a.store.GetBlock(card.ID)
+	if err != nil {
+		a.logger.Error("cannot reload a card to broadcast a recurrence change",
+			mlog.String("cardID", card.ID), mlog.Err(err))
+		return
+	}
+
+	a.blockChangeNotifier.Enqueue(func() error {
+		a.wsAdapter.BroadcastBlockChange(board.TeamID, updated)
+		return nil
+	})
 }

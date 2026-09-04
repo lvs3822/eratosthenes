@@ -202,6 +202,29 @@ func (s *SQLStore) getDueRecurringCards(db sq.BaseRunner, now int64, limit int) 
 	return s.recurringCardsFromRows(rows)
 }
 
+// setCardRecurrence writes a card's recurrence fields and its row.
+//
+// The row is written first, and that order is load bearing rather than incidental.
+// On MySQL and Postgres the generated wrapper runs both statements in one
+// transaction and the order does not matter. On SQLite the wrapper skips the
+// transaction entirely, so one write can land without the other, and of the two
+// possible half-states only one repairs itself: a row whose card is not recurring
+// is deleted by the scheduler on its next tick, whereas a card claiming to recur
+// with no row is invisible to the scheduler and would sit there indefinitely.
+//
+// A nil row means the recurrence is being removed.
+func (s *SQLStore) setCardRecurrence(db sq.BaseRunner, cardID string, blockPatch *model.BlockPatch, rc *model.RecurringCard, userID string) error {
+	if rc == nil {
+		if err := s.deleteRecurringCard(db, cardID); err != nil && !model.IsErrNotFound(err) {
+			return err
+		}
+	} else if err := s.upsertRecurringCard(db, rc); err != nil {
+		return err
+	}
+
+	return s.patchBlock(db, cardID, blockPatch, userID)
+}
+
 func (s *SQLStore) recurringCardsFromRows(rows *sql.Rows) ([]*model.RecurringCard, error) {
 	recurringCards := []*model.RecurringCard{}
 

@@ -894,6 +894,30 @@ func (s *SQLStore) SetBoardVisibility(userID string, categoryID string, boardID 
 
 }
 
+func (s *SQLStore) SetCardRecurrence(cardID string, blockPatch *model.BlockPatch, rc *model.RecurringCard, userID string) error {
+	if s.dbType == model.SqliteDBType {
+		return s.setCardRecurrence(s.db, cardID, blockPatch, rc, userID)
+	}
+	tx, txErr := s.db.BeginTx(context.Background(), nil)
+	if txErr != nil {
+		return txErr
+	}
+	err := s.setCardRecurrence(tx, cardID, blockPatch, rc, userID)
+	if err != nil {
+		if rollbackErr := tx.Rollback(); rollbackErr != nil {
+			s.logger.Error("transaction rollback error", mlog.Err(rollbackErr), mlog.String("methodName", "SetCardRecurrence"))
+		}
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
+	return nil
+
+}
+
 func (s *SQLStore) SetSystemSetting(key string, value string) error {
 	return s.setSystemSetting(s.db, key, value)
 

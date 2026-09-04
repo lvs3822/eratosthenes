@@ -1637,6 +1637,20 @@ func (mr *MockStoreMockRecorder) SetBoardVisibility(arg0, arg1, arg2, arg3 inter
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetBoardVisibility", reflect.TypeOf((*MockStore)(nil).SetBoardVisibility), arg0, arg1, arg2, arg3)
 }
 
+// SetCardRecurrence mocks base method.
+func (m *MockStore) SetCardRecurrence(arg0 string, arg1 *model.BlockPatch, arg2 *model.RecurringCard, arg3 string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetCardRecurrence", arg0, arg1, arg2, arg3)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SetCardRecurrence indicates an expected call of SetCardRecurrence.
+func (mr *MockStoreMockRecorder) SetCardRecurrence(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetCardRecurrence", reflect.TypeOf((*MockStore)(nil).SetCardRecurrence), arg0, arg1, arg2, arg3)
+}
+
 // SetSystemSetting mocks base method.
 func (m *MockStore) SetSystemSetting(arg0, arg1 string) error {
 	m.ctrl.T.Helper()

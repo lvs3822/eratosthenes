@@ -169,6 +169,11 @@ type Store interface {
 	DeleteRecurringCard(cardID string) error
 	GetRecurringCard(cardID string) (*model.RecurringCard, error)
 	GetDueRecurringCards(now int64, limit int) ([]*model.RecurringCard, error)
+	// SetCardRecurrence writes a card's recurrence fields and its row together. It
+	// is the only transactional method in this group, because it is the only one
+	// that has to keep two records in step.
+	// @withTransaction
+	SetCardRecurrence(cardID string, blockPatch *model.BlockPatch, rc *model.RecurringCard, userID string) error
 
 	DBType() string
 	DBVersion() string
