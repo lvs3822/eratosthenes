@@ -39,6 +39,7 @@ import {CardDetailProvider} from './cardDetailContext'
 import CardDetailContents from './cardDetailContents'
 import CardDetailContentsMenu from './cardDetailContentsMenu'
 import CardDetailProperties from './cardDetailProperties'
+import CardRecurrence from './cardRecurrence'
 import useImagePaste from './imagePaste'
 import AttachmentList from './attachment'
 
@@ -289,6 +290,16 @@ const CardDetail = (props: Props): JSX.Element|null => {
                     views={props.views}
                     readonly={props.readonly}
                 />}
+
+                {!limited && <Fragment>
+                    <hr/>
+                    <CardRecurrence
+                        board={props.board}
+                        card={props.card}
+                        activeView={props.activeView}
+                        readonly={props.readonly}
+                    />
+                </Fragment>}
 
                 {attachments.length !== 0 && <Fragment>
                     <hr/>

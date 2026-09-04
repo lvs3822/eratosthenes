@@ -348,6 +348,39 @@ class OctoClient {
         return fixedBlocks
     }
 
+    async setCardRecurrence(boardId: string, cardId: string, config: RecurrenceConfig): Promise<Response> {
+        Utils.log(`setCardRecurrence: ${cardId}`)
+        return fetch(`${this.getBaseURL()}/api/v2/boards/${boardId}/cards/${cardId}/recurrence`, {
+            method: 'PUT',
+            headers: this.headers(),
+            body: JSON.stringify(config),
+        })
+    }
+
+    async deleteCardRecurrence(boardId: string, cardId: string): Promise<Response> {
+        Utils.log(`deleteCardRecurrence: ${cardId}`)
+        return fetch(`${this.getBaseURL()}/api/v2/boards/${boardId}/cards/${cardId}/recurrence`, {
+            method: 'DELETE',
+            headers: this.headers(),
+        })
+    }
+
+    // A read, not a mutation: it writes nothing and creates no undo entry, so it does
+    // not go through the mutator. The date arithmetic it returns lives only on the
+    // server, so that there is one implementation of it rather than two that agree
+    // until they do not.
+    async previewCardRecurrence(boardId: string, cardId: string, config: RecurrenceConfig): Promise<RecurrencePreview | undefined> {
+        const response = await fetch(`${this.getBaseURL()}/api/v2/boards/${boardId}/cards/${cardId}/recurrence/preview`, {
+            method: 'POST',
+            headers: this.headers(),
+            body: JSON.stringify(config),
+        })
+        if (response.status !== 200) {
+            return undefined
+        }
+        return (await this.getJson(response, {})) as RecurrencePreview
+    }
+
     async patchBlock(boardId: string, blockId: string, blockPatch: BlockPatch): Promise<Response> {
         Utils.log(`patchBlock: ${blockId} block`)
         const body = JSON.stringify(blockPatch)

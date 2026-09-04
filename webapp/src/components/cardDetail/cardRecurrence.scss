@@ -1,0 +1,90 @@
+.CardRecurrence {
+    .CardRecurrence__cardType,
+    .CardRecurrence__settings select,
+    .CardRecurrence__settings input {
+        background: rgb(var(--center-channel-bg-rgb));
+        border: 1px solid rgba(var(--center-channel-color-rgb), 0.16);
+        border-radius: 4px;
+        color: rgb(var(--center-channel-color-rgb));
+        padding: 4px 6px;
+    }
+
+    .CardRecurrence__kept,
+    .CardRecurrence__unavailable,
+    .CardRecurrence__hint {
+        color: rgba(var(--center-channel-color-rgb), 0.56);
+        font-size: 12px;
+    }
+
+    .CardRecurrence__kept {
+        margin: 4px 0 0 var(--octo-propertyname-width, 180px);
+    }
+
+    .CardRecurrence__settings {
+        border-left: 2px solid rgba(var(--center-channel-color-rgb), 0.08);
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin: 8px 0 0 8px;
+        padding: 8px 0 8px 12px;
+    }
+
+    .CardRecurrence__row {
+        align-items: center;
+        display: flex;
+        gap: 8px;
+    }
+
+    .CardRecurrence__label {
+        color: rgba(var(--center-channel-color-rgb), 0.72);
+        flex: 0 0 auto;
+        min-width: 160px;
+    }
+
+    .CardRecurrence__interval {
+        width: 64px;
+    }
+
+    .CardRecurrence__timezone {
+        flex: 1 1 auto;
+        min-width: 140px;
+    }
+
+    .CardRecurrence__weekdays {
+        display: flex;
+        gap: 4px;
+
+        button {
+            background: transparent;
+            border: 1px solid rgba(var(--center-channel-color-rgb), 0.16);
+            border-radius: 4px;
+            color: rgb(var(--center-channel-color-rgb));
+            cursor: pointer;
+            min-width: 40px;
+            padding: 4px 6px;
+
+            &.on {
+                background: rgba(var(--button-bg-rgb), 0.16);
+                border-color: rgb(var(--button-bg-rgb));
+            }
+        }
+    }
+
+    .CardRecurrence__preview {
+        color: rgb(var(--center-channel-color-rgb));
+        font-weight: 600;
+        padding-top: 4px;
+    }
+
+    .CardRecurrence__problems {
+        color: rgb(var(--error-text-color-rgb, 210, 75, 78));
+        font-size: 12px;
+        list-style: disc;
+        margin: 0;
+        padding-left: 18px;
+    }
+
+    .CardRecurrence__actions {
+        padding-top: 4px;
+    }
+}

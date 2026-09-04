@@ -49,6 +49,25 @@ type RecurrenceConfig = {
     delayDays?: number
 }
 
+// One validation problem reported by the server. Mirrors ErrInvalidRecurrence in
+// server/model/recurring_card.go.
+type RecurrenceProblem = {
+    field: string
+    reason: string
+}
+
+// What the server says saving a configuration would do. Mirrors RecurrencePreview:
+// one call carries both the computed next occurrence and every problem, so a form
+// can drive its preview line and its save button from the same response.
+type RecurrencePreview = {
+    valid: boolean
+
+    // Null in 'afterDone' mode, which is not scheduled until the card is completed,
+    // and null when the configuration is not valid enough to compute one.
+    nextRunAt: number | null
+    problems: RecurrenceProblem[]
+}
+
 type CardFields = {
     icon?: string
     isTemplate?: boolean
@@ -135,6 +154,8 @@ export {
     RecurrenceMode,
     RecurrenceHistoryMode,
     RecurrenceRuleKind,
+    RecurrencePreview,
+    RecurrenceProblem,
     createCard,
     isRecurrenceActive,
 }

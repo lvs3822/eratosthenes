@@ -9,7 +9,7 @@ import {BlockIcons} from './blockIcons'
 import {Block, BlockPatch, createPatchesFromBlocks} from './blocks/block'
 import {Board, BoardMember, BoardsAndBlocks, IPropertyOption, IPropertyTemplate, IPropertyVisibility, PropertyTypeEnum, createBoard, createPatchesFromBoards, createPatchesFromBoardsAndBlocks, createCardPropertiesPatches} from './blocks/board'
 import {BoardView, ISortOption, createBoardView, KanbanCalculationFields} from './blocks/boardView'
-import {Card, createCard} from './blocks/card'
+import {Card, RecurrenceConfig, createCard} from './blocks/card'
 import {ContentBlock} from './blocks/contentBlock'
 import {CommentBlock} from './blocks/commentBlock'
 import {AttachmentBlock} from './blocks/attachmentBlock'
@@ -239,6 +239,46 @@ class Mutator {
             },
             async () => {
                 await octoClient.patchBlock(boardId, blockId, {title: oldTitle})
+            },
+            description,
+            this.undoGroupId,
+        )
+    }
+
+    // Undo restores whatever the card carried before: the previous configuration when
+    // there was one, and otherwise removal, since there was nothing to go back to.
+    async setCardRecurrence(boardId: string, card: Card, config: RecurrenceConfig, description = 'set card recurrence') {
+        const oldCardType = card.fields.cardType
+        const oldConfig = card.fields.recurrence
+
+        await undoManager.perform(
+            async () => {
+                await octoClient.setCardRecurrence(boardId, card.id, config)
+            },
+            async () => {
+                if (oldCardType === 'recurring' && oldConfig) {
+                    await octoClient.setCardRecurrence(boardId, card.id, oldConfig)
+                } else {
+                    await octoClient.deleteCardRecurrence(boardId, card.id)
+                }
+            },
+            description,
+            this.undoGroupId,
+        )
+    }
+
+    async deleteCardRecurrence(boardId: string, card: Card, description = 'stop card recurring') {
+        const oldCardType = card.fields.cardType
+        const oldConfig = card.fields.recurrence
+
+        await undoManager.perform(
+            async () => {
+                await octoClient.deleteCardRecurrence(boardId, card.id)
+            },
+            async () => {
+                if (oldCardType === 'recurring' && oldConfig) {
+                    await octoClient.setCardRecurrence(boardId, card.id, oldConfig)
+                }
             },
             description,
             this.undoGroupId,

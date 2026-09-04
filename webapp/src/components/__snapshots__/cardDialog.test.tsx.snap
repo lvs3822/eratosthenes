@@ -136,6 +136,25 @@ exports[`components/cardDialog already following card 1`] = `
           </div>
           <hr />
           <div
+            class="CardRecurrence"
+          >
+            <div
+              class="octo-propertyrow"
+            >
+              <div
+                class="octo-propertyname"
+              >
+                Card type
+              </div>
+              <div
+                class="CardRecurrence__unavailable"
+              >
+                This board needs a select property before a card can repeat, because its options are the columns.
+              </div>
+            </div>
+          </div>
+          <hr />
+          <div
             class="CommentsList"
           >
             <div
@@ -551,6 +570,25 @@ exports[`components/cardDialog return a cardDialog readonly 1`] = `
           />
           <hr />
           <div
+            class="CardRecurrence"
+          >
+            <div
+              class="octo-propertyrow"
+            >
+              <div
+                class="octo-propertyname"
+              >
+                Card type
+              </div>
+              <div
+                class="CardRecurrence__unavailable"
+              >
+                This board needs a select property before a card can repeat, because its options are the columns.
+              </div>
+            </div>
+          </div>
+          <hr />
+          <div
             class="CommentsList"
           />
         </div>
@@ -849,6 +887,25 @@ exports[`components/cardDialog return cardDialog menu content 1`] = `
           </div>
           <hr />
           <div
+            class="CardRecurrence"
+          >
+            <div
+              class="octo-propertyrow"
+            >
+              <div
+                class="octo-propertyname"
+              >
+                Card type
+              </div>
+              <div
+                class="CardRecurrence__unavailable"
+              >
+                This board needs a select property before a card can repeat, because its options are the columns.
+              </div>
+            </div>
+          </div>
+          <hr />
+          <div
             class="CommentsList"
           >
             <div
@@ -1049,6 +1106,25 @@ exports[`components/cardDialog return cardDialog menu content and cancel delete 
                     + Add a property
                   </span>
                 </button>
+              </div>
+            </div>
+          </div>
+          <hr />
+          <div
+            class="CardRecurrence"
+          >
+            <div
+              class="octo-propertyrow"
+            >
+              <div
+                class="octo-propertyname"
+              >
+                Card type
+              </div>
+              <div
+                class="CardRecurrence__unavailable"
+              >
+                This board needs a select property before a card can repeat, because its options are the columns.
               </div>
             </div>
           </div>
@@ -1259,6 +1335,25 @@ exports[`components/cardDialog should match snapshot 1`] = `
           </div>
           <hr />
           <div
+            class="CardRecurrence"
+          >
+            <div
+              class="octo-propertyrow"
+            >
+              <div
+                class="octo-propertyname"
+              >
+                Card type
+              </div>
+              <div
+                class="CardRecurrence__unavailable"
+              >
+                This board needs a select property before a card can repeat, because its options are the columns.
+              </div>
+            </div>
+          </div>
+          <hr />
+          <div
             class="CommentsList"
           >
             <div
@@ -1428,6 +1523,25 @@ exports[`components/cardDialog should match snapshot without permissions 1`] = `
           <div
             class="octo-propertylist CardDetailProperties"
           />
+          <hr />
+          <div
+            class="CardRecurrence"
+          >
+            <div
+              class="octo-propertyrow"
+            >
+              <div
+                class="octo-propertyname"
+              >
+                Card type
+              </div>
+              <div
+                class="CardRecurrence__unavailable"
+              >
+                This board needs a select property before a card can repeat, because its options are the columns.
+              </div>
+            </div>
+          </div>
           <hr />
           <div
             class="CommentsList"
