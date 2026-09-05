@@ -20,6 +20,7 @@ import octoClient from '../../octoClient'
 import Switch from '../../widgets/switch'
 import Button from '../../widgets/buttons/button'
 import {Utils} from '../../utils'
+import {sendFlashMessage} from '../flashMessages'
 import {Permission} from '../../constants'
 import {useHasCurrentBoardPermissions} from '../../hooks/permissions'
 
@@ -153,6 +154,11 @@ const CardRecurrence = (props: Props) => {
     const [preview, setPreview] = useState<RecurrencePreview | undefined>(undefined)
     const [saving, setSaving] = useState(false)
 
+    // What is currently stored, so the form can tell whether it has anything left
+    // to save. Saving otherwise changes nothing on screen, since the form already
+    // shows what was typed, and the button looks like it did nothing.
+    const [savedConfig, setSavedConfig] = useState(() => JSON.stringify(storedConfig || null))
+
     const disabled = readonly || !canEditBoardCards
     const candidates = useMemo(() => selectProperties(board), [board.cardProperties])
 
@@ -207,20 +213,40 @@ const CardRecurrence = (props: Props) => {
                 await mutator.deleteCardRecurrence(board.id, card)
             } catch (err: any) {
                 Utils.logError(`Error stopping card recurrence: ${err?.toString()}`)
+                sendFlashMessage({
+                    content: intl.formatMessage({
+                        id: 'CardRecurrence.stopFailed',
+                        defaultMessage: 'Could not stop this card repeating. {reason}',
+                    }, {reason: err?.message || ''}),
+                    severity: 'high',
+                })
+                setCardType(storedCardType)
             }
         }
-    }, [board.id, card, storedCardType])
+    }, [board.id, card, storedCardType, intl])
 
     const onSave = useCallback(async () => {
         setSaving(true)
         try {
             await mutator.setCardRecurrence(board.id, card, config)
+            setSavedConfig(JSON.stringify(config))
         } catch (err: any) {
             Utils.logError(`Error saving card recurrence: ${err?.toString()}`)
+            sendFlashMessage({
+                content: intl.formatMessage({
+                    id: 'CardRecurrence.saveFailed',
+                    defaultMessage: 'Could not save the recurrence. {reason}',
+                }, {reason: err?.message || ''}),
+                severity: 'high',
+            })
         } finally {
             setSaving(false)
         }
-    }, [board.id, card, config])
+    }, [board.id, card, config, intl])
+
+    // Nothing left to save once the form matches what is stored. This is the
+    // success signal as well as the correct state: the button greys out.
+    const unchanged = JSON.stringify(config) === savedConfig
 
     const toggleWeekday = useCallback((weekday: number) => {
         setConfig((current) => {
@@ -615,7 +641,7 @@ const CardRecurrence = (props: Props) => {
                     <Button
                         onClick={onSave}
                         filled={true}
-                        disabled={disabled || saving || !preview || !preview.valid}
+                        disabled={disabled || saving || !preview || !preview.valid || unchanged}
                     >
                         <FormattedMessage
                             id='CardRecurrence.save'

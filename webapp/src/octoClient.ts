@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 import {Block, BlockPatch, FileInfo} from './blocks/block'
 import {Board, BoardsAndBlocks, BoardsAndBlocksPatch, BoardPatch, BoardMember} from './blocks/board'
-import {Card} from './blocks/card'
+import {Card, RecurrenceConfig, RecurrencePreview} from './blocks/card'
 import {ISharing} from './blocks/sharing'
 import {OctoUtils} from './octoUtils'
 import {IUser, UserConfigPatch, UserPreference} from './user'
@@ -350,19 +350,38 @@ class OctoClient {
 
     async setCardRecurrence(boardId: string, cardId: string, config: RecurrenceConfig): Promise<Response> {
         Utils.log(`setCardRecurrence: ${cardId}`)
-        return fetch(`${this.getBaseURL()}/api/v2/boards/${boardId}/cards/${cardId}/recurrence`, {
+        const response = await fetch(`${this.getBaseURL()}/api/v2/boards/${boardId}/cards/${cardId}/recurrence`, {
             method: 'PUT',
             headers: this.headers(),
             body: JSON.stringify(config),
         })
+        await this.throwOnRecurrenceError(response, 'setCardRecurrence')
+
+        return response
     }
 
     async deleteCardRecurrence(boardId: string, cardId: string): Promise<Response> {
         Utils.log(`deleteCardRecurrence: ${cardId}`)
-        return fetch(`${this.getBaseURL()}/api/v2/boards/${boardId}/cards/${cardId}/recurrence`, {
+        const response = await fetch(`${this.getBaseURL()}/api/v2/boards/${boardId}/cards/${cardId}/recurrence`, {
             method: 'DELETE',
             headers: this.headers(),
         })
+        await this.throwOnRecurrenceError(response, 'deleteCardRecurrence')
+
+        return response
+    }
+
+    // The settings form has no other way to learn that nothing was saved: a
+    // rejected request resolves like any other, so without this the button would
+    // appear to do nothing. The server's own sentence is carried through, so a
+    // refused configuration says which field is wrong.
+    private async throwOnRecurrenceError(response: Response, operation: string): Promise<void> {
+        if (response.status === 200) {
+            return
+        }
+
+        const body = (await this.getJson(response, {})) as {error?: string}
+        throw new Error(body.error || `${operation} failed with status ${response.status}`)
     }
 
     // A read, not a mutation: it writes nothing and creates no undo entry, so it does
