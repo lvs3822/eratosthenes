@@ -23,6 +23,7 @@ import Tooltip from '../../widgets/tooltip'
 import ConfirmationDialogBox, {ConfirmationDialogBoxProps} from '../confirmationDialogBox'
 import TelemetryClient, {TelemetryActions, TelemetryCategory} from '../../telemetry/telemetryClient'
 import CardActionsMenu from '../cardActionsMenu/cardActionsMenu'
+import RecurrenceBadge from '../recurrenceBadge'
 
 import {useColumnResize} from './tableColumnResizeContext'
 
@@ -170,6 +171,10 @@ const TableRow = (props: Props) => {
             >
                 <div className='octo-icontitle'>
                     <div className='octo-icon'>{card.fields.icon}</div>
+                    <RecurrenceBadge
+                        card={card}
+                        board={board}
+                    />
                     <Editable
                         ref={titleRef}
                         value={title}

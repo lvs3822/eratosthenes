@@ -19,6 +19,7 @@ import './kanbanCard.scss'
 import CardBadges from '../cardBadges'
 import CardActionsMenu from '../cardActionsMenu/cardActionsMenu'
 import CardActionsMenuIcon from '../cardActionsMenu/cardActionsMenuIcon'
+import RecurrenceBadge from '../recurrenceBadge'
 
 export const OnboardingCardClassName = 'onboardingCard'
 
@@ -138,6 +139,10 @@ const KanbanCard = (props: Props) => {
 
                 <div className='octo-icontitle'>
                     { card.fields.icon ? <div className='octo-icon'>{card.fields.icon}</div> : undefined }
+                    <RecurrenceBadge
+                        card={card}
+                        board={board}
+                    />
                     <div
                         key='__title'
                         className='octo-titletext'
